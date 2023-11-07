@@ -12,68 +12,87 @@
     <link rel="stylesheet" href="https://unpkg.com/xterm@5.2.1/css/xterm.css">
     <!-- <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono&display=swap" rel="stylesheet"> -->
     <style>
-        /* Global styles applying box-sizing and resetting margins and paddings */
         *,
         *::before,
         *::after {
             box-sizing: border-box;
-            margin: 0;
             padding: 0;
+            margin: 0;
         }
 
-        /* Fullscreen terminal styles */
         #terminal {
-            /* The background image, positioning, and filter effects */
+            height: 100%;
+        }
+
+        #terminal .xterm-screen {
+            height: 100% !important;
+            max-width: 100%;
+            overflow-y: auto;
+        }
+
+        #terminal .xterm-viewport {
+            background-color: transparent !important;
+        }
+
+        /* Generated Dynamic CSS Code */
+
+        #terminal {
+            /* The background image */
             background: url('computer.png') center/cover no-repeat fixed;
+
+            /* Positioning */
             position: fixed;
             top: 0;
             right: 0;
             bottom: 0;
             left: 0;
+
+            /* Old video effects */
             filter: contrast(150%) brightness(80%) sepia(30%);
             backdrop-filter: blur(2px);
-            height: 100%;
         }
 
-        /* Styling for the xterm screen */
+
+
+
         .xterm-screen {
-            /* Full width, responsive max-width, and background styling */
             width: 100%;
-            max-width: 911px;
+            /* Responsive width */
+            max-width: 850px;
+            /* Maximum width */
             background: rgba(51, 52, 53, 0.5);
             backdrop-filter: blur(9px);
             padding: 15px;
+            border: 0px solid rgb(0, 255, 26);
             border-radius: 12px;
-            box-shadow: 0 0 10px #021a32;
-
-            /* Positioning and overflow handling */
+            box-shadow: 0px 0px 10px #021a32;
+            max-height: calc(100vh - 94px);
             position: absolute;
             top: 50%;
             left: 50%;
-            transform: translate(-50%, -50%);
+            /* transform: translate(-50%, -50%); */
             z-index: 1000;
+            /* Ensure it's on top */
             overflow: auto;
-            max-height: calc(100vh - 94px);
+            /* Add scroll if content overflows */
         }
 
-        /* Additional terminal styles */
+
+
         .terminal {
             padding: 50px 40px 12px 100px;
         }
 
-        /* xterm rows text shadow */
         .xterm-rows {
-            text-shadow: 0 0 0 #00ff00;
+            text-shadow: 0px 0px 0px #00ff00;
         }
 
-        /* Custom font for the terminal */
         @font-face {
             font-family: 'VT323';
             font-style: normal;
             font-display: swap;
             font-weight: 400;
-            src: url('https://cdn.jsdelivr.net/fontsource/fonts/vt323@latest/latin-400-normal.woff2') format('woff2'),
-                url('https://cdn.jsdelivr.net/fontsource/fonts/vt323@latest/latin-400-normal.woff') format('woff');
+            src: url(https://cdn.jsdelivr.net/fontsource/fonts/vt323@latest/latin-400-normal.woff2) format('woff2'), url(https://cdn.jsdelivr.net/fontsource/fonts/vt323@latest/latin-400-normal.woff) format('woff');
             unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
         }
     </style>
