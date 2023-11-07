@@ -94,7 +94,7 @@
 <body>
 
   <div id="computer-container">
-    <img src="assets/test_2.png" alt="Retro Computer" id="computer-image" />
+    <!-- <img src="assets/test_2.png" alt="Retro Computer" id="computer-image" /> -->
     <div id="terminal">
       <!-- Terminal content goes here -->
     </div>
@@ -140,7 +140,7 @@
       }
 
       writeWelcomeMessage() {
-        this.terminal.writeln("💻 Hello There...");
+        this.terminal.writeln("Hello There...");
         this.terminal.writeln("Type 'help' to see available commands.");
         this.writePrompt();
       }
@@ -372,7 +372,7 @@
       ];
 
       const terminalSettings = {
-        // "fontSize": 16,
+        "fontSize": 8,
         "fontFamily": "'VT323', monospace", // Make sure 'VT323' is loaded as shown earlier
         "cursorStyle": "block",
         "cursorBlink": true,
