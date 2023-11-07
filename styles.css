@@ -1,34 +1,32 @@
 body, html {
-    height: 100%;
-    margin: 0;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    background-color: #000000; /* Or any color that matches your design */
-  }
-  
-  #computer-container {
-    position: relative;
-    display: flex;
-    justify-content: center;
-  }
-  
-  #computer-image {
-    width: 100%; /* Adjust if necessary */
-    height: auto; /* Keeps aspect ratio intact */
-  }
-  
-  #terminal {
-    position: absolute;
-    top: 20%; /* Adjust based on your image */
-    left: 20%; /* Adjust based on your image */
-    width: 80%; /* Adjust based on your image */
-    height: 80%; /* Adjust based on your image */
-    background: black;
-    color: rgb(0, 0, 0);
-    padding: 1em;
-    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.75);
-    overflow-y: auto;
-  }
-  
+  height: 100%;
+  margin: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #000000; /* Set the background to black */
+}
 
+#computer-container {
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+
+#computer-image {
+  width: 100%; /* Adjust if necessary */
+  height: auto; /* Keeps aspect ratio intact */
+}
+
+#terminal {
+  position: absolute;
+  top: 20%; /* Adjust based on your image */
+  left: 20%; /* Adjust based on your image */
+  width: 80%; /* Adjust based on your image */
+  height: 80%; /* Adjust based on your image */
+  background: black;
+  color: white; /* Set the text color to white for visibility */
+  padding: 1em;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.75);
+  overflow-y: auto;
+}
