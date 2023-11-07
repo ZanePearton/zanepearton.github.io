@@ -351,14 +351,69 @@ window.onload = () => {
   "rows": 32
 };
 
-  const cvInteraction = {
+const cvInteraction = {
   "commands": [
-    "help"
+    "help",
+    "about",
+    "experience",
+    "projects",
+    "education",
+    "licenses",
+    "contact"
   ],
-  "cvSections": [],
-  "cv": {},
+  "cvSections": [
+    "about",
+    "experience",
+    "projects",
+    "education",
+    "licenses",
+    "contact"
+  ],
+  "cv": {
+    "about": [
+      "Zane Pearton, Software Engineer specializing in DevOps at Accenture. " +
+      "Passionate about machine learning, natural language processing, and " +
+      "developing innovative software solutions."
+    ],
+    "experience": [
+      "Software Engineer - DevOps @ Accenture: Involved in various projects " +
+      "focused on automating and optimizing development workflows and " +
+      "infrastructure management."
+    ],
+    "projects": [
+      "Langchaingpt: A Python library for NLP and text processing.",
+      "McDeepNet: Machine Learning model for analyzing McDonald's reviews.",
+      "G-Net: TensorFlow implementation of GANs for image generation.",
+      "neuroSnake: A ML-powered Snake game.",
+      "MSGR-ChatApp: A chat application using React and Firebase."
+    ],
+    "education": [
+      "(Your educational background details)"
+    ],
+    "licenses": [
+      "Microsoft Certified: Azure Data Scientist Associate - Feb 2023",
+      "Microsoft Certified: Azure AI Engineer Associate - Dec 2022",
+      "Microsoft Certified: Azure Data Engineer Associate - Dec 2022",
+      "Microsoft Certified: Security, Compliance, and Identity Fundamentals - Dec 2022",
+      "Microsoft Certified: Azure AI Fundamentals - Nov 2022",
+      "Microsoft Certified: Azure Data Fundamentals - Nov 2022",
+      "Microsoft Certified: Azure Fundamentals - Oct 2022",
+      "Amazon Web Services Cloud Practitioner - Jan 2022",
+      "Programming Essentials in Python - Python Software Foundation - Jan 2021",
+      "Security Analyst - Skillsoft (Credential ID 27306224) - Jan 2021",
+      "COBOL Programming with VSCode - IBM - Dec 2020",
+      "Introduction to Cybersecurity - Cisco - Dec 2020",
+      "NDG Linux Essentials - Cisco"
+    ],
+    "contact": [
+      "LinkedIn: Zane Pearton",
+      "GitHub: Zane Pearton",
+      "Personal Website: zanepearton.com"
+    ]
+  },
   "prompt": "root > "
 };
+
 
   const terminalConfigurations = {
     terminal: terminalSettings,
