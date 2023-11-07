@@ -12,7 +12,6 @@ html {
 #terminal pre {
   color: #00ff00; /* Or the hex code of the color you want */
   font-family: 'VT323', monospace;
-  
   margin: 0; /* To reset any default margin */
   padding: 0; /* To align with the terminal's content padding */
   white-space: pre-wrap; /* To ensure long lines wrap and preserve spaces and line breaks */
@@ -51,4 +50,22 @@ html {
 #terminal {
   font-family: 'VT323', monospace;
   font-size: 1em; /* Adjust as necessary */
+}
+
+/* Mobile styles for the terminal container */
+@media screen and (max-width: 480px) {
+  #terminal {
+    width: 100%; /* Use full width of the screen */
+    height: auto; /* Allow terminal to grow as needed */
+    transform: translate(-50%, -50%);
+  }
+}
+
+/* Mobile styles for ASCII art inside the terminal */
+@media screen and (max-width: 480px) {
+  #terminal pre {
+    font-size: 0.5em; /* Decrease font size for ASCII art to fit on mobile screens */
+    line-height: 1; /* Adjust line height to maintain art structure */
+    /* Other adjustments as needed */
+  }
 }
