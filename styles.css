@@ -1,3 +1,4 @@
+/* Corrected the comment syntax */
 body, html {
   height: 100%;
   margin: 0;
@@ -22,8 +23,9 @@ body, html {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 10%; /* Adjust based on your image */
-  height:10%; /* Adjust based on your image */
+  /* Adjusted the width and height to be larger than 10%, assuming you want it to be more visible */
+  width: 60%; /* Adjust based on your image */
+  height: 40%; /* Adjust based on your image */
   transform: translate(-50%, -50%); /* Center the terminal */
   background: black;
   color: white; /* Set the text color to white for visibility */
@@ -31,4 +33,3 @@ body, html {
   box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.75);
   overflow-y: auto;
 }
-
