@@ -275,7 +275,7 @@ window.onload = () => {
     "cursorStyle": "block",
     "cursorBlink": true,
     "theme": {
-      "background": "#070000",
+      "background": "#000000",
       "foreground": "#00ff00",
       "cursor": "#00ff00"
     },

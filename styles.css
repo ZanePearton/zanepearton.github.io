@@ -13,7 +13,7 @@ html {
   display: flex;
   justify-content: center;
   align-items: center;
-  background-color: #070000; /* Red color, adjust as needed */
+  background-color: #000000; /* Red color, adjust as needed */
 }
 
 #terminal {
