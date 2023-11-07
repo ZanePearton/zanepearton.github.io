@@ -279,8 +279,8 @@ window.onload = () => {
       "foreground": "#00ff00",
       "cursor": "#00ff00"
     },
-    "cols": 80,
-    "rows": 32
+    "cols": 50,
+    "rows": 22
   };
 
 
