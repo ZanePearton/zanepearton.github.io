@@ -270,12 +270,12 @@ window.onload = () => {
   ];
 
   const terminalSettings = {
-    // "fontSize": 8,
+    "fontSize": 8,
     "fontFamily": "'VT323', monospace", // Make sure 'VT323' is loaded as shown earlier
     "cursorStyle": "block",
     "cursorBlink": true,
     "theme": {
-      "background": "#16213e",
+      // "background": "#16213e",
       "foreground": "#00ff00",
       "cursor": "#00ff00"
     },
