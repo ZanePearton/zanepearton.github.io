@@ -34,34 +34,33 @@
       /* Set the background to black */
     }
 
-
     #computer-container {
       position: relative;
       display: flex;
       justify-content: center;
     }
 
-    #computer-container {
-      position: relative;
-      width: 100vw;
-      /* 100% of the viewport width */
-      height: 100vh;
-      /* 100% of the viewport height */
-      display: flex;
-      justify-content: center;
-      align-items: center;
+    #computer-image {
+      width: 100%;
+      /* Adjust if necessary */
+      height: auto;
+      /* Keeps aspect ratio intact */
     }
 
     #terminal {
       position: absolute;
-      top: 0;
-      left: 0;
+      top: 50%;
+      left: 50%;
+      /* Adjusted the width and height to be larger than 10%, assuming you want it to be more visible */
       width: 100%;
-      /* 100% of the #computer-container */
+      /* Adjust based on your image */
       height: 100%;
-      /* 100% of the #computer-container */
+      /* Adjust based on your image */
+      transform: translate(-50%, -50%);
+      /* Center the terminal */
       background: black;
       color: white;
+      /* Set the text color to white for visibility */
       padding: 1em;
       box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.75);
       overflow-y: auto;
@@ -83,8 +82,7 @@
 
     @font-face {
       font-family: 'VT323';
-      font-size: 8px;
-      /* Example font size */
+      font-size: 8px; /* Example font size */
       font-style: normal;
       font-weight: 400;
       src: url(https://cdn.jsdelivr.net/fontsource/fonts/vt323@latest/latin-400-normal.woff2) format('woff2'),
