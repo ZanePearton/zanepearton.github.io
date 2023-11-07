@@ -37,15 +37,60 @@
         /* Generated Dynamic CSS Code */
 
         #terminal {
-            /* background: url('test_2.png') center/cover no-repeat fixed; */
-            
+            /* The background image */
             background: url('room.webp') center/cover no-repeat fixed;
-            backdrop-filter: blur(9px);
+
+            /* Positioning */
             position: fixed;
-            inset: 0;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
+
+            /* Old video effects */
+            filter: contrast(150%) brightness(80%) sepia(30%);
+            backdrop-filter: blur(2px);
         }
 
-        
+        /* Add a pseudo-element to create noise and possibly a vignette */
+        #terminal::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            background: url('test_2.png');
+            /* A transparent noise texture */
+            opacity: 0.5;
+            /* Adjust opacity for desired intensity of noise */
+
+            /* Vignette effect */
+            box-shadow: inset 0 0 100px rgba(0, 0, 0, 0.5);
+
+            /* Ensure the noise texture overlays the entire element */
+            pointer-events: none;
+        }
+
+        /* Optional: Add scanlines effect */
+        #terminal::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            background: repeating-linear-gradient(to bottom,
+                    rgba(255, 255, 255, 0.05),
+                    rgba(255, 255, 255, 0.05) 1px,
+                    transparent 1px,
+                    transparent 3px);
+            opacity: 0.25;
+            /* Adjust opacity for desired intensity of scanlines */
+            pointer-events: none;
+        }
+
+
 
         .xterm-screen {
             width: 100%;
