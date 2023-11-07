@@ -9,13 +9,32 @@ html {
   align-items: center;
   background-color: #000000; 
 }
+#terminal pre {
+  color: #00ff00; /* Or the hex code of the color you want */
+  font-family: 'VT323', monospace;
+  
+  margin: 0; /* To reset any default margin */
+  padding: 0; /* To align with the terminal's content padding */
+  white-space: pre-wrap; /* To ensure long lines wrap and preserve spaces and line breaks */
+  word-break: keep-all; /* To prevent breaking the ASCII art */
+ 
+}
+
+#terminal h1 {
+  color: #00ff00; /* Terminal-like green color */
+  font-family: 'VT323', monospace; /* Monospace font for terminal look */
+  font-size: 1em; /* Larger text for the heading */
+  margin-bottom: 0.5em; /* Space below the heading */
+} 
+
 
 #terminal {
+  
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 60%; /* Adjust based on your design */
-  height: 70%; /* Adjust based on your design */
+  width: 50%; /* Adjust based on your design */
+  height: 90%; /* Adjust based on your design */
   transform: translate(-50%, -50%);
   background-color: #000000;
 }
