@@ -34,37 +34,41 @@
       /* Set the background to black */
     }
 
-    #computer-container {
-      position: relative;
-      display: flex;
-      justify-content: center;
-    }
 
-    #computer-image {
-      width: 100%;
-      /* Adjust if necessary */
-      height: auto;
-      /* Keeps aspect ratio intact */
+
+    #computer-container {
+      width: 100vw;
+      /* 100% of the viewport width */
+      height: 100vh;
+      /* 100% of the viewport height */
+      position: relative;
+      /* Needed for absolutely positioned children */
     }
 
     #terminal {
       position: absolute;
-      top: 50%;
-      left: 50%;
-      /* Adjusted the width and height to be larger than 10%, assuming you want it to be more visible */
+      top: 0;
+      left: 0;
       width: 100%;
-      /* Adjust based on your image */
+      /* 100% of the #computer-container */
       height: 100%;
-      /* Adjust based on your image */
-      transform: translate(-50%, -50%);
-      /* Center the terminal */
+      /* 100% of the #computer-container */
+      padding: 1em;
+      box-sizing: border-box;
+      /* Include padding in the size calculation */
       background: black;
       color: white;
-      /* Set the text color to white for visibility */
-      padding: 1em;
       box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.75);
       overflow-y: auto;
     }
+
+
+
+
+
+
+
+
 
 
     /* .xterm-screen {
@@ -82,7 +86,8 @@
 
     @font-face {
       font-family: 'VT323';
-      font-size: 8px; /* Example font size */
+      font-size: 8px;
+      /* Example font size */
       font-style: normal;
       font-weight: 400;
       src: url(https://cdn.jsdelivr.net/fontsource/fonts/vt323@latest/latin-400-normal.woff2) format('woff2'),
@@ -94,7 +99,7 @@
 <body>
 
   <div id="computer-container">
-    <img src="assets/test_2.png" alt="Retro Computer" id="computer-image" />
+    <!-- <img src="assets/test_2.png" alt="Retro Computer" id="computer-image" /> -->
     <div id="terminal">
       <!-- Terminal content goes here -->
     </div>
