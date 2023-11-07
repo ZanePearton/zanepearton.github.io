@@ -22,8 +22,8 @@ body, html {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 30%; /* Adjust based on your image */
-  height:30%; /* Adjust based on your image */
+  width: 10%; /* Adjust based on your image */
+  height:10%; /* Adjust based on your image */
   transform: translate(-50%, -50%); /* Center the terminal */
   background: black;
   color: white; /* Set the text color to white for visibility */
