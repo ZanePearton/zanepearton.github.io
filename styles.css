@@ -22,13 +22,12 @@ html {
 #terminal h1 {
   color: #00ff00; /* Terminal-like green color */
   font-family: 'VT323', monospace; /* Monospace font for terminal look */
-  font-size: 1em; /* Larger text for the heading */
+  font-size: .5em; /* Larger text for the heading */
   margin-bottom: 0.5em; /* Space below the heading */
 } 
 
 
 #terminal {
-  
   position: absolute;
   top: 50%;
   left: 50%;
