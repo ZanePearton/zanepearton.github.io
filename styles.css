@@ -8,6 +8,7 @@ html {
   justify-content: center;
   align-items: center;
   background-color: #000000; 
+  
 }
 #terminal pre {
   color: #00ff00; /* Or the hex code of the color you want */
@@ -22,7 +23,7 @@ html {
 #terminal h1 {
   color: #00ff00; /* Terminal-like green color */
   font-family: 'VT323', monospace; /* Monospace font for terminal look */
-  font-size: .5em; /* Larger text for the heading */
+  font-size: 1.2em; /* Larger text for the heading */
   margin-bottom: 0.5em; /* Space below the heading */
 } 
 

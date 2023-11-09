@@ -269,6 +269,7 @@ window.onload = () => {
     { instance: WebLinksAddon },
   ];
 
+  
   const terminalSettings = {
     "fontSize": 9,
     "fontFamily": "'VT323', monospace", // Make sure 'VT323' is loaded as shown earlier
