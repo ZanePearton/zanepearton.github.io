@@ -291,16 +291,16 @@ window.onload = () => {
       "experience",
       "projects",
       "education",
-      "licenses",
+      "certifications",
       "contact",
       "help"
     ],
     "cvSections": [
-      "about",
-      "experience",
-      "projects",
-      "education",
-      "licenses",
+      "Zane about",
+      "Zane's experience",
+      "Zane's projects",
+      "Zane's education",
+      "certifications",
       "contact"
     ],
     "cv": {
@@ -354,10 +354,11 @@ window.onload = () => {
         "neuroSnake: A ML-powered Snake game.",
         "MSGR-ChatApp: A chat application using React and Firebase."
       ],
+
       "education": [
         "(Your educational background details)"
       ],
-      "licenses": [
+      "certifications": [
         "Microsoft Certified: Azure Data Scientist Associate - Feb 2023",
         "Microsoft Certified: Azure AI Engineer Associate - Dec 2022",
         "Microsoft Certified: Azure Data Engineer Associate - Dec 2022",
