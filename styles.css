@@ -27,6 +27,15 @@ html {
   margin-bottom: 0.5em; /* Space below the heading */
 } 
 
+#terminal h2 {
+  color: #00ff00; /* Terminal-like green color */
+  font-family: 'VT323', monospace; /* Monospace font for terminal look */
+  font-size: 0.5em; /* Larger text for the heading */
+  margin-bottom: 0.5em; /* Space below the heading */
+} 
+
+
+
 
 #terminal {
   position: absolute;
