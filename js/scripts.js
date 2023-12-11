@@ -356,7 +356,8 @@ window.onload = () => {
       ],
 
       "education": [
-        "(Your educational background details)"
+        "RMIT - Masters in Architecture",
+        "RMIT - Bachelor's in Architecture",
       ],
       "certifications": [
         "Microsoft Certified: Azure Data Scientist Associate - Feb 2023",
@@ -374,9 +375,9 @@ window.onload = () => {
         "NDG Linux Essentials - Cisco"
       ],
       "contact": [
-        "LinkedIn: Zane Pearton",
-        "GitHub: Zane Pearton",
-        "Personal Website: zanepearton.com"
+        "LinkedIn: https://www.linkedin.com/in/zane-pearton",
+        "GitHub: ZanePearton",
+        "Linktree: https://linktr.ee/zanepearton"
       ]
     },
     "prompt": "root > "
