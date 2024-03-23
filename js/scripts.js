@@ -303,7 +303,7 @@ window.onload = () => {
       "certifications",
       "contact"
     ],
-    // "cv": {
+    "cv": {
     //   "about": [
     //     "Name: Zane Pearton",
     //     "Role: Data Engineer",
