@@ -327,48 +327,48 @@ window.onload = () => {
       "experience": [
         "Data Engineer",
         "Key Responsibilities:",
-        "As a Data Engineer, I analyze data extracts from Collibra and Snowflake, coordinating with data management. My role also involves automating data transformation processes. I've developed a Streamlit dashboard for automated keyword generation using Python, NLTK, and Pandas, significantly enhancing text data analysis by streamlining keyword identification.​",
+        "As a Data Engineer, I analyze data extracts from Collibra and Snowflake, coordinating with data management. My role also involves automating data transformation processes. I've developed a Streamlit dashboard for automated keyword generation using Python, NLTK, and Pandas, significantly enhancing text data analysis by streamlining keyword identification.",
         "Achievements:",
-        " Data Wearhouse: Snowflake",​
-        " Data Governance: Colibra",​
-        " Automation of Data Transformation: Python, Pandas, SQL",​
+        " Data Wearhouse: Snowflake",
+        " Data Governance: Colibra",
+        " Automation of Data Transformation: Python, Pandas, SQL",
         " Data Dashboard: Streamlit",
 
         "Devops Engineer",
         "Key Responsibilities:",
-        "In this role, I was responsible for driving the adoption and optimization of DevOps methodologies. My key contributions included implementing CI/CD pipelines, deployment of AWS cloud services through automation, and facilitating the transition of development practices to a more streamlined and agile approach. I also played a crucial role in knowledge transfer, conducting training sessions and presentations to enhance engineering teams.​",
+        "In this role, I was responsible for driving the adoption and optimization of DevOps methodologies. My key contributions included implementing CI/CD pipelines, deployment of AWS cloud services through automation, and facilitating the transition of development practices to a more streamlined and agile approach. I also played a crucial role in knowledge transfer, conducting training sessions and presentations to enhance engineering teams",
         "Achievements:",
-        " CI/CD Pipeline Development: Designed and executed CI/CD pipelines tailored for AWS services (Lamda, SQS, Document DB) to enhance the software deployment process utilising cloud formation.",​
-        " CI/CD Methodology Implementation: Played a pivotal role in the introduction of CI/CD practices to improving development and operational efficiency.",​
-        " Proof of Concept (POC) Execution: Developed POCs for microservice CI/CD pipelines integrating Jest for unit testing, and deployed services like SNS, SQS, and Lambda using Terraform.",​
-        " Artifactory Integration: Implemented Artifactory for Continuous Deployment, enabling better version control and deployment practices.",​
-        " Customized Pipeline Solutions: Created customized TFS CI/CD pipelines in PowerShell, catering to unique project requirements.",​
-        " CI for Node.js Microservices: Established Continuous Integration practices for Node.js microservices, ensuring code quality with unit testing.",​
-        " CD for Node.js Microservices: Advanced the Continuous Deployment processes for Node.js microservices architecture, utilizing AWS SAM CLI and CloudFormation templates to create scalable infrastructure stacks.",​
-        " EC2 Build Servers: Configured and managed EC2 Build Servers, supervised the installation of TFS Agents, and transitioned pipelines from TFS to Azure DevOps.",​
-        " CI/CD Documentation: Authored comprehensive documentation for continuous integration pipeline processes.",​
-        " Knowledge Sharing: Presented on DevOps and CI/CD processes in 'Brownbag' educational sessions to software developers.",​
+        " CI/CD Pipeline Development: Designed and executed CI/CD pipelines tailored for AWS services (Lamda, SQS, Document DB) to enhance the software deployment process utilising cloud formation.",
+        " CI/CD Methodology Implementation: Played a pivotal role in the introduction of CI/CD practices to improving development and operational efficiency.",
+        " Proof of Concept (POC) Execution: Developed POCs for microservice CI/CD pipelines integrating Jest for unit testing, and deployed services like SNS, SQS, and Lambda using Terraform.",
+        " Artifactory Integration: Implemented Artifactory for Continuous Deployment, enabling better version control and deployment practices.",
+        " Customized Pipeline Solutions: Created customized TFS CI/CD pipelines in PowerShell, catering to unique project requirements.",
+        " CI for Node.js Microservices: Established Continuous Integration practices for Node.js microservices, ensuring code quality with unit testing.",
+        " CD for Node.js Microservices: Advanced the Continuous Deployment processes for Node.js microservices architecture, utilizing AWS SAM CLI and CloudFormation templates to create scalable infrastructure stacks.",
+        " EC2 Build Servers: Configured and managed EC2 Build Servers, supervised the installation of TFS Agents, and transitioned pipelines from TFS to Azure DevOps.",
+        " CI/CD Documentation: Authored comprehensive documentation for continuous integration pipeline processes.",
+        " Knowledge Sharing: Presented on DevOps and CI/CD processes in 'Brownbag' educational sessions to software developers.",
         " Intermediate Training: Conducted intermediate-level training on build services for the DevOps team, enhancing team capabilities and understanding of build and deployment systems.",
         
         "Devops Engineer",
         "RKey Responsibilities:",
-        "In this role, I was responsible for implementeding DevOps initiatives to enhance security, optimize deployments, and improve development operations. Key moments of this project  include the successful integration of a Static Application Security Testing Tool into the CI/CD pipeline, streamlining API migration processes, and implementing robust monitoring tools for Azure DevOps environments. I played a pivotal role in creating agile pipeline creation processes, managing Vlocity upgrades within Salesforce, and innovating deployment strategies to minimize downtime. My efforts ensured rapid, secure, and efficient delivery cycles, contributing to the overall excellence in deployment and development practices",​
-        "DevSecOps Pipeline Development: Executed a Proof of Concept (POC) for the integration of a Static Application Security Testing Tool (Checkmarx SAST) into the Salesforce CI/CD pipeline, focusing on code security analysis.",​
+        "In this role, I was responsible for implementeding DevOps initiatives to enhance security, optimize deployments, and improve development operations. Key moments of this project  include the successful integration of a Static Application Security Testing Tool into the CI/CD pipeline, streamlining API migration processes, and implementing robust monitoring tools for Azure DevOps environments. I played a pivotal role in creating agile pipeline creation processes, managing Vlocity upgrades within Salesforce, and innovating deployment strategies to minimize downtime. My efforts ensured rapid, secure, and efficient delivery cycles, contributing to the overall excellence in deployment and development practices",
+        "DevSecOps Pipeline Development: Executed a Proof of Concept (POC) for the integration of a Static Application Security Testing Tool (Checkmarx SAST) into the Salesforce CI/CD pipeline, focusing on code security analysis.",
         "Achievements:",
-        " API Migration: Led the migration of the Getsandbox API to Postman, ensuring cross-compatibility and enhanced response routing to Salesforce endpoints.",​
-        " Monitoring Tool Implementation: Created a monitoring tool for Scratch Org Pools and Package Monitoring in Azure DevOps, streamlining validation processes and package status monitoring for development teams.",​
-        " Pipeline Creation and Management: Developed capabilities for rapid creation and cloning of Azure DevOps (ADO) pipelines, facilitating unscheduled deployments with minimal preparation.",​
-        " Vlocity Upgrades and Installations: Managed the installation and upgrading of Vlocity within the Salesforce environment, performing associated pre/post deployment tasks.",​
-        " CI/CD Pipeline Enhancements: Integrated Vlocity into CI/CD pipelines, utilizing Puppeteer and Vlocity CLI, and implemented scripts for efficient deployment of Salesforce Data Categories.",​
-        " Deployment Excellence: Improved deployment processes by implementing a mix of delta/full package deployments, reducing downtime and accelerating the handover for testing.",​
+        " API Migration: Led the migration of the Getsandbox API to Postman, ensuring cross-compatibility and enhanced response routing to Salesforce endpoints.",
+        " Monitoring Tool Implementation: Created a monitoring tool for Scratch Org Pools and Package Monitoring in Azure DevOps, streamlining validation processes and package status monitoring for development teams.",
+        " Pipeline Creation and Management: Developed capabilities for rapid creation and cloning of Azure DevOps (ADO) pipelines, facilitating unscheduled deployments with minimal preparation.",
+        " Vlocity Upgrades and Installations: Managed the installation and upgrading of Vlocity within the Salesforce environment, performing associated pre/post deployment tasks.",
+        " CI/CD Pipeline Enhancements: Integrated Vlocity into CI/CD pipelines, utilizing Puppeteer and Vlocity CLI, and implemented scripts for efficient deployment of Salesforce Data Categories.",
+        " Deployment Excellence: Improved deployment processes by implementing a mix of delta/full package deployments, reducing downtime and accelerating the handover for testing.",
         " Breakpoint Identification: Established methods for identifying and resolving critical deployment breaks, directing essential feedback to developers",
         
         "Application Development",
         "Key Responsibilities:",
-        "In this role, I was responsible for implementeding demonstrating the functionality of newly developed features to clients, ensuring that the product met both quality standards and user requirements.",​
+        "In this role, I was responsible for implementeding demonstrating the functionality of newly developed features to clients, ensuring that the product met both quality standards and user requirements.",
         "Achievements:",
-        " Conducting comprehensive Salesforce functional testing to ensure product quality and performance met stringent standards.",​
-        " Demonstrating new feature functionality to stakeholders, ensuring clarity and understanding of product developments and updates.",​
+        " Conducting comprehensive Salesforce functional testing to ensure product quality and performance met stringent standards.",
+        " Demonstrating new feature functionality to stakeholders, ensuring clarity and understanding of product developments and updates.",
         " Evaluating product quality to identify areas of improvement, thereby contributing to the ongoing refinement of the Salesforce application"
       ],
       "projects": [
