@@ -1,5 +1,6 @@
 
-// CV Terminal Class • Start • 
+
+// CV Terminal Class - Start - 
 class CVTerminal {
   terminal;
   isAnimating;
@@ -58,7 +59,7 @@ class CVTerminal {
     this.cvSections = new Set(this.config.cv.cvSections);
     this.cv = this.config.cv.cv;
     this.currentSectionIndex = 0;
-    this.animationFrameId = 1;
+    this.animationFrameId = -1;
   }
 
   installAddons() {
@@ -135,7 +136,7 @@ class CVTerminal {
   handleBackspace() {
     if (this.cursorX > this.promptLength) {
       this.terminal.write("\b \b");
-      this.cursorX;
+      this.cursorX--;
     }
   }
 
@@ -182,7 +183,7 @@ class CVTerminal {
   writeHelp() {
     let helpText = "\n  AVAILABLE COMMANDS:\n\n";
     for (const cmd of this.commands) {
-      helpText += "• " + cmd + "\n";
+      helpText += "- " + cmd + "\n";
     }
 
     this.isAnimating = true;
@@ -283,7 +284,6 @@ window.onload = () => {
     "cols": 50,
     "rows": 22
   };
-
 
   const cvInteraction = {
     "commands": [
