@@ -57,6 +57,6 @@ html, body {
   }
 
   #terminal pre, #terminal h1, #terminal h2 {
-    font-size: 0.8em; /* Adjust font size for readability on small screens */
+    font-size: 0.2em; /* Adjust font size for readability on small screens */
   }
 }
