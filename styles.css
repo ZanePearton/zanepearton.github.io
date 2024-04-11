@@ -17,7 +17,7 @@ html, body {
 
 #terminal {
   position: relative; /* Changed to relative to ensure responsive design */
-  width: 80%; /* Slightly adjusted for better responsiveness */
+  width: 100%; /* Slightly adjusted for better responsiveness */
   max-width: 900px; /* Maximum width to ensure it doesn't look too wide on larger screens */
   height: 80%; /* Adjusted for content size and better responsiveness */
   padding: 20px; /* Added padding for aesthetics */
@@ -51,7 +51,7 @@ html, body {
 
 @media screen and (max-width: 480px) {
   #terminal {
-    width: 95%; /* Use nearly full width for small screens */
+    width: 100%; /* Use nearly full width for small screens */
     margin-top: 10%; /* Increased top margin for visibility */
     transform: none; /* No need for transform on mobile */
   }
