@@ -19,7 +19,7 @@ html, body {
   position: relative; /* Changed to relative to ensure responsive design */
   width: 80%; /* Slightly adjusted for better responsiveness */
   max-width: 900px; /* Maximum width to ensure it doesn't look too wide on larger screens */
-  height: auto; /* Adjusted for content size and better responsiveness */
+  height: 80%; /* Adjusted for content size and better responsiveness */
   padding: 20px; /* Added padding for aesthetics */
   margin: 5% auto; /* Ensure it's centered with margin auto and give some top margin for breathing space */
   background-color: #000;
