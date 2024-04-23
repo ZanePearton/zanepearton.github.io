@@ -25,13 +25,13 @@ body, html {
 }
 /* Default font size for larger screens */
 pre {
-  font-size: 16px;
+  font-size: 12px;
 }
 
 /* Reduce font size on smaller screens */
 @media (max-width: 600px) {
   pre {
-    font-size: 8px; /* Adjust based on your specific needs */
+    font-size: 4px; /* Adjust based on your specific needs */
   }
 }
 
