@@ -6,84 +6,64 @@
        url(https://cdn.jsdelivr.net/fontsource/fonts/vt323@latest/latin-400-normal.woff) format('woff');
 }
 
-/* html, body {
-  height: 100%;
-  margin: 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background-color: #000; 
-} */
-
 body, html {
-  height: 100%;  /* Ensure the full height for vertical centering */
-  margin: 0;     /* Remove default margin */
-  display: flex; /* Use flexbox for easy centering */
+  height: 100%;  /* Full height for vertical centering */
+  margin: 0;     /* No default margin */
+  display: flex; /* Flexbox for centering content */
   justify-content: center; /* Center horizontally */
   align-items: center; /* Center vertically */
-  background-color: #000; 
-}
-/* Default font size for larger screens */
-pre {
-  font-size: 12px;
+  background-color: #000; /* Terminal background */
 }
 
-/* Reduce font size on smaller screens */
+/* Unified pre element styling */
+pre {
+  display: inline-block; /* Ensures width fits the content */
+  white-space: pre-wrap; /* Allows text wrapping */
+  overflow-wrap: break-word; /* Breaks long words at the end of the line */
+  font-family: 'VT323', monospace; /* Consistent terminal font */
+  color: #00ff00; /* Terminal-like green color */
+  font-size: 12px; /* Default font size, reasonable balance */
+}
+
+/* Responsive adjustments for smaller screens */
 @media (max-width: 600px) {
   pre {
-    font-size: 4px; /* Adjust based on your specific needs */
+    font-size: 8px; /* Smaller font size for small devices */
   }
 }
 
-pre {
-  display: inline-block; /* Inline-block for width to fit content */
-  white-space: pre-wrap; /* Ensure the pre text wraps if necessary */
-  font-size: 9px;
-}
-
 #terminal {
-  text-align: center; /* Center the text inside the pre element */
-  position: relative; /* Changed to relative to ensure responsive design */
-  width: 100%; /* Slightly adjusted for better responsiveness */
-  max-width: 900px; /* Maximum width to ensure it doesn't look too wide on larger screens */
-  height: 80%; /* Adjusted for content size and better responsiveness */
-  padding: 20px; /* Added padding for aesthetics */
-  margin: 5% auto; /* Ensure it's centered with margin auto and give some top margin for breathing space */
-  background-color: #000;
-  color: #00ff00;
-  font-family: 'VT323', monospace;
-  font-size: 1em;
-  border: 2px solid #00ff00; /* Add a green border for that terminal feel */
-  box-shadow: 0 0 15px rgba(0, 255, 0, 0.7); /* Optional: Add a glow effect */
+  text-align: center; /* Center the text inside */
+  position: relative; /* Maintain relative positioning */
+  width: 95%; /* Full width adjusted for padding */
+  max-width: 900px; /* Limit maximum width */
+  height: 80%; /* Height relative to viewport */
+  padding: 20px; /* Padding inside the terminal */
+  margin: auto; /* Auto margins for automatic centering */
+  background-color: #000; /* Background color */
+  color: #00ff00; /* Text color */
+  border: 2px solid #00ff00; /* Green border */
+  box-shadow: 0 0 15px rgba(0, 255, 0, 0.7); /* Subtle glow effect */
 }
 
 #terminal pre, #terminal h1, #terminal h2 {
-  color: #00ff00; /* Terminal-like green color */
-  font-family: 'VT323', monospace; /* Ensures consistency in font */
-  margin: 0; /* Resets default margin */
-  padding: 0; /* Aligns with the terminal's content padding */
-  white-space: pre-wrap; /* Ensures long lines wrap */
-  word-break: keep-all; /* Prevents breaking the ASCII art */
+  margin: 0; /* Remove default margin */
+  padding: 0; /* No padding inside */
 }
 
-#terminal h1 {
-  font-size: 1.5em; /* Adjust size for heading */
-  margin-bottom: 0.5em; /* Space below the heading */
-}
-
-#terminal h2 {
-  font-size: 1em; /* Adjust size for subheading */
-  margin-bottom: 0.5em; /* Space below the subheading */
+#terminal h1, #terminal h2 {
+  font-size: 1.5em; /* Slightly larger font for headings */
+  margin-bottom: 0.5em; /* Space below headings */
 }
 
 @media screen and (max-width: 480px) {
   #terminal {
-    width: 100%; /* Use nearly full width for small screens */
-    margin-top: 10%; /* Increased top margin for visibility */
-    transform: none; /* No need for transform on mobile */
+    padding: 10px; /* Reduced padding for more space */
+    height: auto; /* Auto height for flexibility */
+    margin-top: 5%; /* Adjusted top margin */
   }
 
   #terminal pre, #terminal h1, #terminal h2 {
-    font-size: 0.2em; /* Adjust font size for readability on small screens */
+    font-size: 0.8em; /* Larger font than previous for readability */
   }
 }
