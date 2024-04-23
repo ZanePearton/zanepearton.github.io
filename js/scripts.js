@@ -472,7 +472,7 @@ class CVTerminal {
 
   writeWelcomeMessage() {
     // this.terminal.writeln("Hello There...");
-    this.terminal.writeln("Hello There... Type 'help' to see available commands.");
+    this.terminal.writeln("Type 'help' to see available commands.");
     this.writePrompt();
   }
 
