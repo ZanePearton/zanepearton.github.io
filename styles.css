@@ -6,16 +6,33 @@
        url(https://cdn.jsdelivr.net/fontsource/fonts/vt323@latest/latin-400-normal.woff) format('woff');
 }
 
-html, body {
+/* html, body {
   height: 100%;
   margin: 0;
   display: flex;
   justify-content: center;
   align-items: center;
   background-color: #000; 
+} */
+
+body, html {
+  height: 100%;  /* Ensure the full height for vertical centering */
+  margin: 0;     /* Remove default margin */
+  display: flex; /* Use flexbox for easy centering */
+  justify-content: center; /* Center horizontally */
+  align-items: center; /* Center vertically */
+  background-color: #000; 
+}
+
+
+
+pre {
+  display: inline-block; /* Inline-block for width to fit content */
+  white-space: pre-wrap; /* Ensure the pre text wraps if necessary */
 }
 
 #terminal {
+  text-align: center; /* Center the text inside the pre element */
   position: relative; /* Changed to relative to ensure responsive design */
   width: 100%; /* Slightly adjusted for better responsiveness */
   max-width: 900px; /* Maximum width to ensure it doesn't look too wide on larger screens */
