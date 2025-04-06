@@ -615,3 +615,80 @@ footer {
         font-size: 17px;
     }
 }
+
+/* Certifications section */
+.certifications {
+    background-color: var(--apple-white);
+}
+
+.certifications-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2rem;
+    margin-top: 2rem;
+}
+
+.certification-category {
+    flex: 1 1 300px;
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    transition: var(--transition);
+}
+
+.certification-category:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+.certification-category h3 {
+    color: var(--apple-orange);
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    font-size: 21px;
+    line-height: 1.2381;
+    letter-spacing: .007em;
+}
+
+.certification-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.certification-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    transition: var(--transition);
+}
+
+.certification-item:hover {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+.certification-name {
+    font-weight: 500;
+    font-size: 15px;
+    color: var(--apple-text);
+}
+
+.certification-date {
+    color: var(--apple-dark-gray);
+    font-size: 0.85rem;
+}
+
+/* Add this to your responsive section */
+@media (max-width: 768px) {
+    .certifications-container {
+        flex-direction: column;
+    }
+    
+    .certification-category {
+        margin-bottom: 1.5rem;
+    }
+}
