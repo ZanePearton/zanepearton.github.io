@@ -1,0 +1,69 @@
+@font-face {
+  font-family: 'VT323';
+  font-style: normal;
+  font-weight: 400;
+  src: url(https://cdn.jsdelivr.net/fontsource/fonts/vt323@latest/latin-400-normal.woff2) format('woff2'),
+       url(https://cdn.jsdelivr.net/fontsource/fonts/vt323@latest/latin-400-normal.woff) format('woff');
+}
+
+body, html {
+  height: 100%;  /* Full height for vertical centering */
+  margin: 0;     /* No default margin */
+  display: flex; /* Flexbox for centering content */
+  justify-content: center; /* Center horizontally */
+  align-items: center; /* Center vertically */
+  background-color: #000; /* Terminal background */
+}
+
+/* Unified pre element styling */
+pre {
+  display: inline-block; /* Ensures width fits the content */
+  white-space: pre-wrap; /* Allows text wrapping */
+  overflow-wrap: break-word; /* Breaks long words at the end of the line */
+  font-family: 'VT323', monospace; /* Consistent terminal font */
+  color: #00ff00; /* Terminal-like green color */
+  font-size: 12px; /* Default font size, reasonable balance */
+}
+
+/* Responsive adjustments for smaller screens */
+@media (max-width: 600px) {
+  pre {
+    font-size: 8px; /* Smaller font size for small devices */
+  }
+}
+
+#terminal {
+  text-align: center; /* Center the text inside */
+  position: relative; /* Maintain relative positioning */
+  width: 95%; /* Full width adjusted for padding */
+  max-width: 900px; /* Limit maximum width */
+  height: 80%; /* Height relative to viewport */
+  padding: 20px; /* Padding inside the terminal */
+  margin: auto; /* Auto margins for automatic centering */
+  background-color: #000; /* Background color */
+  color: #00ff00; /* Text color */
+  border: 2px solid #00ff00; /* Green border */
+  box-shadow: 0 0 15px rgba(0, 255, 0, 0.7); /* Subtle glow effect */
+}
+
+#terminal pre, #terminal h1, #terminal h2 {
+  margin: 0; /* Remove default margin */
+  padding: 0; /* No padding inside */
+}
+
+#terminal h1, #terminal h2 {
+  font-size: 1.5em; /* Slightly larger font for headings */
+  margin-bottom: 0.5em; /* Space below headings */
+}
+
+@media screen and (max-width: 480px) {
+  #terminal {
+    padding: 10px; /* Reduced padding for more space */
+    height: auto; /* Auto height for flexibility */
+    margin-top: 5%; /* Adjusted top margin */
+  }
+
+  #terminal pre, #terminal h1, #terminal h2 {
+    font-size: 0.8em; /* Larger font than previous for readability */
+  }
+}

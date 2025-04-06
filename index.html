@@ -1,49 +1,229 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-  <!-- Metadata and Title -->
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
-  <title>Retro Computer Terminal</title>
-
-  <!-- Stylesheets -->
-  <link rel="stylesheet" href="styles.css">
-  <link rel="stylesheet" href="https://unpkg.com/xterm@5.2.1/css/xterm.css">
-
-  <!-- JavaScript Libraries -->
-  <script src="https://unpkg.com/xterm@5.2.1/lib/xterm.js"></script>
-  <script src="https://unpkg.com/xterm-addon-fit@0.7.0/lib/xterm-addon-fit.js"></script>
-  <script src="https://unpkg.com/xterm-addon-web-links@0.8.0/lib/xterm-addon-web-links.js"></script>
-  <script src="js/scripts.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zane Pearton</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+    <script src="js/scripts.js"></script>
 </head>
-
 <body>
-  <div id="terminal">
-<!--     <pre>
-      ________  ________  ________   _______         
-      |\_____  \|\   __  \|\   ___  \|\  ___ \      
-       \|___/  /\ \  \|\  \ \  \\ \  \ \   __/|      
-           /  / /\ \   __  \ \  \\ \  \ \  \_|/__      
-          /  /_/__\ \  \ \  \ \  \\ \  \ \  \_|\ \      
-         |\________\ \__\ \__\ \__\\ \__\ \_______\      
-          \|_______|\|__|\|__|\|__| \|__|\|_______|        
-                                                                                                                                   
-                                                                                                                                 
-                                                                                                                                   
-    </pre> -->
-    <pre>
-      ________  ________  ________   _______           ________  _______   ________  ________  _________  ________  ________      
-      |\_____  \|\   __  \|\   ___  \|\  ___ \         |\   __  \|\  ___ \ |\   __  \|\   __  \|\___   ___\\   __  \|\   ___  \    
-       \|___/  /\ \  \|\  \ \  \\ \  \ \   __/|        \ \  \|\  \ \   __/|\ \  \|\  \ \  \|\  \|___ \  \_\ \  \|\  \ \  \\ \  \   
-           /  / /\ \   __  \ \  \\ \  \ \  \_|/__       \ \   ____\ \  \_|/_\ \   __  \ \   _  _\   \ \  \ \ \  \\\  \ \  \\ \  \  
-          /  /_/__\ \  \ \  \ \  \\ \  \ \  \_|\ \       \ \  \___|\ \  \_|\ \ \  \ \  \ \  \\  \|   \ \  \ \ \  \\\  \ \  \\ \  \ 
-         |\________\ \__\ \__\ \__\\ \__\ \_______\       \ \__\    \ \_______\ \__\ \__\ \__\\ _\    \ \__\ \ \_______\ \__\\ \__\
-          \|_______|\|__|\|__|\|__| \|__|\|_______|        \|__|     \|_______|\|__|\|__|\|__|\|__|    \|__|  \|_______|\|__| \|__|
-                                                                                                                                                                                                                                                    
-                                                                                                                                   
-    </pre>
-  </div>
+    <!-- Header -->
+    <header>
+        <div class="container header-container">
+            <a href="#" class="logo" style="background: linear-gradient(to right, var(--apple-orange), var(--apple-purple)); -webkit-background-clip: text; background-clip: text; color: transparent;">Portfolio</a>
+            <button class="mobile-menu-btn" id="mobileMenuBtn">
+                <i class="fas fa-bars"></i>
+            </button>
+            <nav>
+                <ul id="navMenu">
+                    <li><a href="#hero">Home</a></li>
+                    <li><a href="#about">About</a></li>
+                    <li><a href="#projects">Projects</a></li>
+                    <li><a href="#contact">Contact</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+    
+    <!-- Hero Section -->
+    <section class="hero" id="hero">
+        <div class="hero-content">
+            <h1>Hello, I'm <span class="intro-name">Zane Pearton</span></h1>
+            <h2>Data Engineer. DevOps Specialist. Software Engineer.</h2>
+            <div class="cta-buttons">
+                <a href="#projects" class="apple-button apple-button-primary">View My Work</a>
+                <a href="#contact" class="apple-button apple-button-secondary">Get In Touch</a>
+            </div>
+        </div>
+    </section>
+    
+    <!-- About Section -->
+    <section class="section about" id="about">
+        <div class="container">
+            <div class="section-title">
+                <h2>About Me</h2>
+                <p>I'm a Software Engineering Specialist at Accenture with Aus/EU citizenship.</p>
+            </div>
+            <div class="about-container">
+                <div class="about-image">
+                    <img src="/api/placeholder/600/600" alt="Profile Picture">
+                </div>
+                <div class="about-content">
+                    <h3 class="about-headline">I specialize in Data Engineering, DevOps, and Software Development.</h3>
+                    <p class="about-text">As a Software Engineering Specialist at Accenture, I possess a multifaceted skill set across a broad range of technologies and methodologies. My expertise encompasses Data Engineering, Automation, CI/CD, Software Engineering, and Platform Engineering.</p>
+                    <p class="about-text">I'm proficient in developing and integrating bespoke tools leveraging platforms like AWS, Azure, Salesforce, Git, GitHub, Azure DevOps, and GitHub Actions using languages such as Java, Bash, JavaScript, Python, YAML, and PowerShell.</p>
+                    <div class="skills-container">
+                        <h4 class="skills-title">My Skills</h4>
+                        <div class="skill-pills">
+                            <span class="skill-pill">Python</span>
+                            <span class="skill-pill">JavaScript</span>
+                            <span class="skill-pill">Java</span>
+                            <span class="skill-pill">AWS</span>
+                            <span class="skill-pill">Azure</span>
+                            <span class="skill-pill">Docker</span>
+                            <span class="skill-pill">Terraform</span>
+                            <span class="skill-pill">CI/CD</span>
+                            <span class="skill-pill">Snowflake</span>
+                            <span class="skill-pill">React</span>
+                            <span class="skill-pill">TensorFlow</span>
+                            <span class="skill-pill">3D Modeling</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Projects Section -->
+    <section class="section projects" id="projects">
+        <div class="container">
+            <div class="section-title">
+                <h2>My Work</h2>
+                <p>A selection of my recent projects and professional experience.</p>
+            </div>
+            <div class="projects-grid">
+                <!-- Project 1 -->
+                <div class="project-card">
+                    <div class="project-image">
+                        <img src="/api/placeholder/600/400" alt="Data Engineering Project">
+                    </div>
+                    <div class="project-content">
+                        <h3>Langchaingpt</h3>
+                        <p>A Python library for NLP and text processing, featuring automated keyword generation using Python, NLTK, and Pandas.</p>
+                        <div class="project-tags">
+                            <span class="project-tag">Python</span>
+                            <span class="project-tag">NLP</span>
+                            <span class="project-tag">NLTK</span>
+                        </div>
+                        <div class="project-links">
+                            <a href="#" class="project-link">
+                                <i class="fas fa-external-link-alt"></i> View Project
+                            </a>
+                            <a href="#" class="project-link">
+                                <i class="fab fa-github"></i> GitHub
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Project 2 -->
+                <div class="project-card">
+                    <div class="project-image">
+                        <img src="/api/placeholder/600/400" alt="Machine Learning Project">
+                    </div>
+                    <div class="project-content">
+                        <h3>McDeepNet</h3>
+                        <p>Machine Learning model for analyzing McDonald's reviews, showcasing data science and analytics capabilities.</p>
+                        <div class="project-tags">
+                            <span class="project-tag">TensorFlow</span>
+                            <span class="project-tag">Python</span>
+                            <span class="project-tag">Data Analysis</span>
+                        </div>
+                        <div class="project-links">
+                            <a href="#" class="project-link">
+                                <i class="fas fa-external-link-alt"></i> View Project
+                            </a>
+                            <a href="#" class="project-link">
+                                <i class="fab fa-github"></i> GitHub
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Project 3 -->
+                <div class="project-card">
+                    <div class="project-image">
+                        <img src="/api/placeholder/600/400" alt="GAN Project">
+                    </div>
+                    <div class="project-content">
+                        <h3>GNet</h3>
+                        <p>TensorFlow implementation of Generative Adversarial Networks (GANs) for image generation with advanced deep learning techniques.</p>
+                        <div class="project-tags">
+                            <span class="project-tag">TensorFlow</span>
+                            <span class="project-tag">GANs</span>
+                            <span class="project-tag">Deep Learning</span>
+                        </div>
+                        <div class="project-links">
+                            <a href="#" class="project-link">
+                                <i class="fas fa-external-link-alt"></i> View Project
+                            </a>
+                            <a href="#" class="project-link">
+                                <i class="fab fa-github"></i> GitHub
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Contact Section -->
+    <section class="section contact" id="contact">
+        <div class="container">
+            <div class="section-title">
+                <h2>Get In Touch</h2>
+                <p>Interested in working together? Let's start a conversation.</p>
+            </div>
+            <div class="contact-container">
+                <div class="contact-info">
+                    <h3>Contact Information</h3>
+                    <div class="contact-method">
+                        <h4>Professional Profile</h4>
+                        <a href="https://www.linkedin.com/in/zanepearton">LinkedIn: ZanePearton</a>
+                    </div>
+                    <div class="contact-method">
+                        <h4>Based In</h4>
+                        <p>Australia (with EU citizenship)</p>
+                    </div>
+                    <div class="contact-method">
+                        <h4>Current Role</h4>
+                        <p>Data Engineer at Accenture</p>
+                    </div>
+                    <div class="socials">
+                        <a href="https://github.com/ZanePearton" class="social-link"><i class="fab fa-github"></i></a>
+                        <a href="https://www.linkedin.com/in/zanepearton" class="social-link"><i class="fab fa-linkedin-in"></i></a>
+                        <a href="https://dev.to/zanepearton" class="social-link"><i class="fab fa-dev"></i></a>
+                        <a href="https://linktr.ee/zanepearton" class="social-link"><i class="fas fa-link"></i></a>
+                    </div>
+                </div>
+                <div class="contact-form">
+                    <form id="contactForm">
+                        <div class="form-group">
+                            <label for="name" class="form-label">Name</label>
+                            <input type="text" id="name" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="email" class="form-label">Email</label>
+                            <input type="email" id="email" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="subject" class="form-label">Subject</label>
+                            <input type="text" id="subject" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="message" class="form-label">Message</label>
+                            <textarea id="message" class="form-control" required></textarea>
+                        </div>
+                        <button type="submit" class="form-submit">Send Message</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <div class="footer-links">
+                <a href="#hero" class="footer-link">Home</a>
+                <a href="#about" class="footer-link">About</a>
+                <a href="#projects" class="footer-link">Projects</a>
+                <a href="#contact" class="footer-link">Contact</a>
+            </div>
+            <p class="copyright">© 2025 Zane Pearton. All rights reserved.</p>
+        </div>
+    </footer>
 </body>
-
 </html>
