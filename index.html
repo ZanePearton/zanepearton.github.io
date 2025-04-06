@@ -8,7 +8,59 @@
     <link rel="stylesheet" href="styles.css">
     <script src="js/scripts.js"></script>
 </head>
-<body>
+<style>
+    /* Add these styles for the certifications section */
+    .certifications-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 2rem;
+        margin-top: 2rem;
+    }
+    
+    .certification-category {
+        flex: 1 1 300px;
+        background-color: rgba(255, 255, 255, 0.05);
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+    
+    .certification-category h3 {
+        color: var(--apple-blue);
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .certification-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    
+    .certification-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    
+    .certification-name {
+        font-weight: 500;
+    }
+    
+    .certification-date {
+        color: var(--apple-gray);
+        font-size: 0.85rem;
+    }
+    
+    @media (max-width: 768px) {
+        .certifications-container {
+            flex-direction: column;
+        }
+    }
+</style><body>
     <!-- Header -->
     <header>
         <div class="container header-container">
@@ -21,6 +73,7 @@
                     <li><a href="#hero">Home</a></li>
                     <li><a href="#about">About</a></li>
                     <li><a href="#projects">Projects</a></li>
+                    <li><a href="#certifications">Certifications</a></li>
                     <li><a href="#contact">Contact</a></li>
                 </ul>
             </nav>
@@ -85,6 +138,229 @@
                             <span class="skill-pill">3D Modeling</span>
                             <span class="skill-pill">AR/VR</span>
                             <span class="skill-pill">Oculus</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Certifications Section -->
+    <section class="section certifications" id="certifications">
+        <div class="container">
+            <div class="section-title">
+                <h2>Certifications</h2>
+                <p>Professional certifications validating my expertise in cloud, AI, data, and DevOps.</p>
+            </div>
+            <div class="certifications-container">
+                <!-- Microsoft Section -->
+                <div class="certification-category">
+                    <h3>Microsoft Azure</h3>
+                    <div class="certification-list">
+                        <div class="certification-item">
+                            <span class="certification-name">Azure Data Engineer Associate</span>
+                            <span class="certification-date">December 2022</span>
+                        </div>
+                        <div class="certification-item">
+                            <span class="certification-name">Azure Data Scientist Associate</span>
+                            <span class="certification-date">February 2023</span>
+                        </div>
+                        <div class="certification-item">
+                            <span class="certification-name">Azure AI Engineer Associate</span>
+                            <span class="certification-date">December 2022</span>
+                        </div>
+                        <div class="certification-item">
+                            <span class="certification-name">Azure AI Fundamentals</span>
+                            <span class="certification-date">November 2022</span>
+                        </div>
+                        <div class="certification-item">
+                            <span class="certification-name">Azure Data Fundamentals</span>
+                            <span class="certification-date">November 2022</span>
+                        </div>
+                        <div class="certification-item">
+                            <span class="certification-name">Azure Fundamentals</span>
+                            <span class="certification-date">October 2022</span>
+                        </div>
+                        <div class="certification-item">
+                            <span class="certification-name">Security, Compliance, and Identity Fundamentals</span>
+                            <span class="certification-date">December 2022</span>
+                        </div>
+                        <div class="certification-item">
+                            <span class="certification-name">Designing and Implementing DevOps Solutions</span>
+                            <span class="certification-date">January 2024</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- GitLab Section -->
+                <div class="certification-category">
+                    <h3>GitLab</h3>
+                    <div class="certification-list">
+                        <div class="certification-item">
+                            <span class="certification-name">Certified CI/CD Associate</span>
+                            <span class="certification-date">February 2024</span>
+                        </div>
+                        <div class="certification-item">
+                            <span class="certification-name">Certified Git Associate</span>
+                            <span class="certification-date">June 2024</span>
+                        </div>
+                        <div class="certification-item">
+                            <span class="certification-name">Certified Security Specialist</span>
+                            <span class="certification-date">July 2024</span>
+                        </div>
+                        <div class="certification-item">
+                            <span class="certification-name">Certified Project Management Associate</span>
+                            <span class="certification-date">October 2024</span>
+                        </div>
+                        <div class="certification-item">
+                            <span class="certification-name">Certified Implementation Services Professional</span>
+                            <span class="certification-date">October 2024</span>
+                        </div>
+                        <div class="certification-item">
+                            <span class="certification-name">Certified Services Engineer Professional</span>
+                            <span class="certification-date">November 2024</span>
+                        </div>
+                        <div class="certification-item">
+                            <span class="certification-name">Certified Migration Services Professional</span>
+                            <span class="certification-date">November 2024</span>
+                        </div>
+                        <div class="certification-item">
+                            <span class="certification-name">GitLab CI Fundamentals</span>
+                            <span class="certification-date">January 2024</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- AWS Section -->
+                <div class="certification-category">
+                    <h3>AWS</h3>
+                    <div class="certification-list">
+                        <div class="certification-item">
+                            <span class="certification-name">Certified Cloud Practitioner</span>
+                            <span class="certification-date">January 2022</span>
+                        </div>
+                        <div class="certification-item">
+                            <span class="certification-name">Introduction to Generative AI</span>
+                            <span class="certification-date">December 2024</span>
+                        </div>
+                        <div class="certification-item">
+                            <span class="certification-name">Machine Learning Foundations</span>
+                            <span class="certification-date">January 2025</span>
+                        </div>
+                        <div class="certification-item">
+                            <span class="certification-name">Getting Started with Serverless</span>
+                            <span class="certification-date">November 2024</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Google Section -->
+                <div class="certification-category">
+                    <h3>Google</h3>
+                    <div class="certification-list">
+                        <div class="certification-item">
+                            <span class="certification-name">Introduction to Generative AI</span>
+                            <span class="certification-date">December 2023</span>
+                        </div>
+                        <div class="certification-item">
+                            <span class="certification-name">Introduction to Large Language Models</span>
+                            <span class="certification-date">December 2023</span>
+                        </div>
+                        <div class="certification-item">
+                            <span class="certification-name">Introduction to Responsible AI</span>
+                            <span class="certification-date">December 2023</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- IBM Section -->
+                <div class="certification-category">
+                    <h3>IBM</h3>
+                    <div class="certification-list">
+                        <div class="certification-item">
+                            <span class="certification-name">Deep Learning using TensorFlow</span>
+                            <span class="certification-date">January 2024</span>
+                        </div>
+                        <div class="certification-item">
+                            <span class="certification-name">Containers & Kubernetes Essentials</span>
+                            <span class="certification-date">January 2024</span>
+                        </div>
+                        <div class="certification-item">
+                            <span class="certification-name">COBOL Programming with VSCode</span>
+                            <span class="certification-date">December 2020</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Python Section -->
+                <div class="certification-category">
+                    <h3>Python</h3>
+                    <div class="certification-list">
+                        <div class="certification-item">
+                            <span class="certification-name">PCEP – Certified Entry-Level Python Programmer</span>
+                            <span class="certification-date">February 2024</span>
+                        </div>
+                        <div class="certification-item">
+                            <span class="certification-name">Programming Essentials in Python</span>
+                            <span class="certification-date">January 2021</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- DataCamp & OpenCV Section -->
+                <div class="certification-category">
+                    <h3>Data Science</h3>
+                    <div class="certification-list">
+                        <div class="certification-item">
+                            <span class="certification-name">Developing AI Systems with OpenAI API</span>
+                            <span class="certification-date">April 2024</span>
+                        </div>
+                        <div class="certification-item">
+                            <span class="certification-name">Machine Learning for Time Series Data</span>
+                            <span class="certification-date">March 2024</span>
+                        </div>
+                        <div class="certification-item">
+                            <span class="certification-name">OpenCV: TensorFlow Keras Bootcamp</span>
+                            <span class="certification-date">March 2024</span>
+                        </div>
+                        <div class="certification-item">
+                            <span class="certification-name">Supervised Learning with scikit-learn</span>
+                            <span class="certification-date">February 2024</span>
+                        </div>
+                        <div class="certification-item">
+                            <span class="certification-name">Databricks Lakehouse Fundamentals</span>
+                            <span class="certification-date">March 2024</span>
+                        </div>
+                        <div class="certification-item">
+                            <span class="certification-name">JavaScript Algorithms and Data Structures</span>
+                            <span class="certification-date">January 2024</span>
+                        </div>
+                        <div class="certification-item">
+                            <span class="certification-name">Getting Started with AI on Jetson Nano</span>
+                            <span class="certification-date">January 2025</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Cisco & Security Section -->
+                <div class="certification-category">
+                    <h3>Security & Other</h3>
+                    <div class="certification-list">
+                        <div class="certification-item">
+                            <span class="certification-name">Cisco: Introduction to Cybersecurity</span>
+                            <span class="certification-date">December 2020</span>
+                        </div>
+                        <div class="certification-item">
+                            <span class="certification-name">Cisco: NDG Linux Essentials</span>
+                            <span class="certification-date">December 2020</span>
+                        </div>
+                        <div class="certification-item">
+                            <span class="certification-name">Cisco: Introduction to IoT</span>
+                            <span class="certification-date">September 2020</span>
+                        </div>
+                        <div class="certification-item">
+                            <span class="certification-name">Skillsoft: Security Analyst</span>
+                            <span class="certification-date">January 2021</span>
                         </div>
                     </div>
                 </div>
@@ -290,6 +566,7 @@
                 <a href="#hero" class="footer-link">Home</a>
                 <a href="#about" class="footer-link">About</a>
                 <a href="#projects" class="footer-link">Projects</a>
+                <a href="#certifications" class="footer-link">Certifications</a>
                 <a href="#contact" class="footer-link">Contact</a>
             </div>
             <p class="copyright">© 2025 Zane Pearton. All rights reserved.</p>
