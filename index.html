@@ -44,7 +44,7 @@
         <div class="container">
             <div class="section-title">
                 <h2>About Me</h2>
-                <p>I'm a Software Engineering Specialist at Accenture with Aus/EU citizenship.</p>
+                <p>I'm a Software Engineering Specialist with Aus/EU citizenship.</p>
             </div>
             <div class="about-container">
                 <div class="about-visual">
@@ -591,77 +591,5 @@
             <p class="copyright">© 2025 Zane Pearton. All rights reserved.</p>
         </div>
     </footer>
-    
-    <!-- Scripts -->
-    <script>
-        // Mobile menu toggle
-        const mobileMenuBtn = document.getElementById('mobileMenuBtn');
-        const navMenu = document.getElementById('navMenu');
-        
-        mobileMenuBtn.addEventListener('click', () => {
-            navMenu.classList.toggle('active');
-            mobileMenuBtn.innerHTML = navMenu.classList.contains('active') 
-                ? '<i class="fas fa-times"></i>' 
-                : '<i class="fas fa-bars"></i>';
-        });
-        
-        // Smooth scrolling
-        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-            anchor.addEventListener('click', function (e) {
-                e.preventDefault();
-                
-                // Close mobile menu if open
-                if (navMenu.classList.contains('active')) {
-                    navMenu.classList.remove('active');
-                    mobileMenuBtn.innerHTML = '<i class="fas fa-bars"></i>';
-                }
-                
-                document.querySelector(this.getAttribute('href')).scrollIntoView({
-                    behavior: 'smooth'
-                });
-            });
-        });
-        
-        // Form submission
-        const contactForm = document.getElementById('contactForm');
-        
-        contactForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            // Basic form validation
-            const name = document.getElementById('name').value;
-            const email = document.getElementById('email').value;
-            const subject = document.getElementById('subject').value;
-            const message = document.getElementById('message').value;
-            
-            if (!name || !email || !subject || !message) {
-                alert('Please fill out all fields');
-                return;
-            }
-            
-            // Send the form data using Formspree
-            const formData = new FormData(contactForm);
-            
-            fetch('https://formspree.io/f/zanefrederickandreas@gmail.com', {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'Accept': 'application/json'
-                }
-            })
-            .then(response => {
-                if (response.ok) {
-                    alert('Thanks for your message! I\'ll get back to you soon.');
-                    contactForm.reset();
-                } else {
-                    alert('Oops! There was a problem sending your message. Please try again.');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Oops! There was a problem sending your message. Please try again.');
-            });
-        });
-    </script>
 </body>
 </html>
