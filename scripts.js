@@ -170,12 +170,14 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// FIXED Dark mode toggle - This will definitely appear
+// FIXED Dark mode toggle with comprehensive styling and debugging
 function createFixedDarkModeToggle() {
     // Check if it already exists
     if (document.getElementById('darkModeToggle')) {
         return;
     }
+    
+    console.log("Creating dark mode toggle button");
     
     // Create toggle button with inline styles to ensure visibility
     const darkModeToggle = document.createElement('button');
@@ -185,10 +187,10 @@ function createFixedDarkModeToggle() {
     
     // Apply inline styles for maximum visibility
     darkModeToggle.style.position = 'fixed';
-    darkModeToggle.style.bottom = '80px'; // Position in bottom right instead of top
+    darkModeToggle.style.bottom = '80px';
     darkModeToggle.style.right = '20px';
-    darkModeToggle.style.zIndex = '9999'; // Very high z-index
-    darkModeToggle.style.background = 'linear-gradient(to right, #ff9500, #af52de)'; // Use your site's gradient
+    darkModeToggle.style.zIndex = '9999';
+    darkModeToggle.style.background = 'linear-gradient(to right, #ff9500, #af52de)';
     darkModeToggle.style.color = 'white';
     darkModeToggle.style.border = 'none';
     darkModeToggle.style.borderRadius = '50%';
@@ -208,15 +210,23 @@ function createFixedDarkModeToggle() {
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     const savedMode = localStorage.getItem('darkMode');
     
+    console.log("Saved dark mode:", savedMode);
+    console.log("Prefers dark:", prefersDark);
+    
+    // Apply dark mode if previously selected or if user prefers dark mode
     if (savedMode === 'true' || (savedMode === null && prefersDark)) {
+        console.log("Applying dark mode class to body");
         document.body.classList.add('dark-mode');
         darkModeToggle.innerHTML = '<i class="fas fa-sun"></i>';
     }
     
     // Add click event
-    darkModeToggle.addEventListener('click', () => {
+    darkModeToggle.addEventListener('click', function() {
+        console.log("Dark mode toggle clicked");
         document.body.classList.toggle('dark-mode');
         const isDark = document.body.classList.contains('dark-mode');
+        
+        console.log("Dark mode is now:", isDark);
         
         // Save preference
         localStorage.setItem('darkMode', isDark);
@@ -230,6 +240,8 @@ function createFixedDarkModeToggle() {
             document.body.style.transition = '';
         }, 500);
     });
+    
+    console.log("Dark mode toggle button created and added to page");
 }
 
 // Add scroll progress indicator
@@ -461,155 +473,6 @@ function enhanceCertifications() {
     }
 }
 
-// Add styles for animations
-function addEnhancementStyles() {
-    // Check if styles already exist
-    if (document.getElementById('enhancement-styles')) {
-        return;
-    }
-    
-    const enhancementStyles = document.createElement('style');
-    enhancementStyles.id = 'enhancement-styles';
-    enhancementStyles.textContent = `
-        /* Dark mode styles */
-        .dark-mode {
-            background-color: #121212;
-            color: #f0f0f0;
-        }
-        .dark-mode .apple-button-primary {
-            background: linear-gradient(to right, var(--apple-orange), var(--apple-purple));
-        }
-        .dark-mode .apple-button-secondary {
-            border-color: #f0f0f0;
-            color: #f0f0f0;
-        }
-        .dark-mode .project-card {
-            background-color: #1e1e1e;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-        }
-        .dark-mode .form-control {
-            background-color: #2d2d2d;
-            color: #f0f0f0;
-            border-color: #444;
-        }
-        .dark-mode .skill-pill {
-            background-color: #333;
-        }
-        .dark-mode .certification-item {
-            background-color: #1e1e1e;
-        }
-        .dark-mode .contact-form {
-            background-color: #1e1e1e;
-        }
-        .dark-mode .form-submit {
-            background: linear-gradient(to right, var(--apple-orange), var(--apple-purple));
-        }
-        
-        /* Menu animations */
-        #mobileMenuBtn.rotated i {
-            transform: rotate(90deg);
-            transition: transform 0.3s ease;
-        }
-        #navMenu li {
-            opacity: 0;
-            transform: translateY(-10px);
-            transition: opacity 0.3s ease, transform 0.3s ease;
-        }
-        
-        /* Form animations */
-        .active-label {
-            transform: translateY(-20px) scale(0.8);
-            color: #3498db;
-            transition: all 0.3s ease;
-        }
-        .error-input {
-            border-color: #e74c3c !important;
-            animation: shake 0.5s;
-        }
-        .valid-input {
-            border-color: #2ecc71 !important;
-        }
-        .invalid-input {
-            border-color: #e74c3c !important;
-        }
-        
-        /* Success and error messages */
-        .success-message, .error-message {
-            padding: 15px;
-            margin-top: 15px;
-            border-radius: 5px;
-            opacity: 1;
-            transition: opacity 0.5s ease;
-        }
-        .success-message {
-            background-color: rgba(46, 204, 113, 0.2);
-            border-left: 4px solid #2ecc71;
-            color: #2ecc71;
-        }
-        .error-message {
-            background-color: rgba(231, 76, 60, 0.2);
-            border-left: 4px solid #e74c3c;
-            color: #e74c3c;
-        }
-        
-        /* Loading spinner */
-        .spinner {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid rgba(255,255,255,0.3);
-            border-radius: 50%;
-            border-top-color: white;
-            animation: spin 1s ease-in-out infinite;
-        }
-        
-        /* Fade-in animation */
-        .fade-in {
-            opacity: 0;
-            transform: translateY(20px);
-            transition: opacity 0.6s ease, transform 0.6s ease;
-        }
-        .fade-in.visible {
-            opacity: 1;
-            transform: translateY(0);
-        }
-        
-        /* Back to top button */
-        #backToTop.visible {
-            opacity: 1;
-            transform: translateY(0);
-        }
-        
-        /* Pulse animation for tech sphere */
-        @keyframes pulse {
-            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 149, 0, 0.4); }
-            70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(255, 149, 0, 0); }
-            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 149, 0, 0); }
-        }
-        
-        /* Tech sphere orbit animation */
-        @keyframes orbit {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-        
-        /* Animation keyframes */
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-5px); }
-            75% { transform: translateX(5px); }
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-    `;
-    document.head.appendChild(enhancementStyles);
-}
-
 // Add fade-in animation to sections
 function addFadeInToSections() {
     const sections = document.querySelectorAll('section');
@@ -622,7 +485,6 @@ function addFadeInToSections() {
 
 // Initialize all enhancements with multiple triggers to ensure they run
 function initializeEnhancements() {
-    addEnhancementStyles();
     createFixedDarkModeToggle();
     createScrollProgress();
     createBackToTopButton();
@@ -635,14 +497,21 @@ function initializeEnhancements() {
 // Make sure enhancements run on page load using multiple approaches for reliability
 // Use a load event instead of DOMContentLoaded for best compatibility
 window.addEventListener('load', () => {
+    console.log("Window loaded - initializing enhancements");
     // Wait a moment to ensure DOM is fully ready
     setTimeout(initializeEnhancements, 500);
 });
 
 // Also try running the initialization when script is loaded
+document.addEventListener('DOMContentLoaded', () => {
+    console.log("DOM loaded - initializing enhancements");
+    setTimeout(initializeEnhancements, 300);
+});
+
 // Wrapped in a try-catch to prevent any errors from stopping execution
 try {
-    // Run with a delay to ensure page is ready
+    // Run immediately as a fallback
+    console.log("Immediate execution - initializing enhancements");
     setTimeout(initializeEnhancements, 800);
 } catch (error) {
     console.error('Error initializing enhancements:', error);
