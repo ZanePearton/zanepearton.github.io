@@ -1,68 +1,69 @@
-// Mobile menu toggle with animation
-const mobileMenuBtn = document.querySelector('.mobile-menu-btn') || document.getElementById('mobileMenuBtn');
-const navMenu = document.getElementById('navMenu');
+// Mobile menu toggle with animation - WITH PROPER NULL CHECKS
+document.addEventListener('DOMContentLoaded', function() {
+    // First try to get the mobile menu button with proper null checks
+    const mobileMenuBtn = document.querySelector('.mobile-menu-btn') || document.getElementById('mobileMenuBtn');
+    const navMenu = document.getElementById('navMenu');
 
-// Animated menu toggle with transitions
-if (mobileMenuBtn && navMenu) {
-    mobileMenuBtn.addEventListener('click', () => {
-        navMenu.classList.toggle('active');
-        
-        // Animate the menu icon with a rotation
-        if (navMenu.classList.contains('active')) {
-            mobileMenuBtn.innerHTML = '<i class="fas fa-times"></i>';
-            mobileMenuBtn.classList.add('rotated');
-            // Animate menu items one by one
-            const menuItems = navMenu.querySelectorAll('li');
-            menuItems.forEach((item, index) => {
-                setTimeout(() => {
-                    item.style.opacity = '1';
-                    item.style.transform = 'translateY(0)';
-                }, 100 * index);
-            });
-        } else {
-            mobileMenuBtn.innerHTML = '<i class="fas fa-bars"></i>';
-            mobileMenuBtn.classList.remove('rotated');
-            // Reset menu items animation
-            const menuItems = navMenu.querySelectorAll('li');
-            menuItems.forEach(item => {
-                item.style.opacity = '0';
-                item.style.transform = 'translateY(-10px)';
-            });
-        }
-    });
-}
+    // Only add event listeners if both elements exist
+    if (mobileMenuBtn && navMenu) {
+        mobileMenuBtn.addEventListener('click', () => {
+            navMenu.classList.toggle('active');
+            
+            // Animate the menu icon with a rotation
+            if (navMenu.classList.contains('active')) {
+                mobileMenuBtn.innerHTML = '<i class="fas fa-times"></i>';
+                mobileMenuBtn.classList.add('rotated');
+                // Animate menu items one by one
+                const menuItems = navMenu.querySelectorAll('li');
+                menuItems.forEach((item, index) => {
+                    setTimeout(() => {
+                        item.style.opacity = '1';
+                        item.style.transform = 'translateY(0)';
+                    }, 100 * index);
+                });
+            } else {
+                mobileMenuBtn.innerHTML = '<i class="fas fa-bars"></i>';
+                mobileMenuBtn.classList.remove('rotated');
+                // Reset menu items animation
+                const menuItems = navMenu.querySelectorAll('li');
+                menuItems.forEach(item => {
+                    item.style.opacity = '0';
+                    item.style.transform = 'translateY(-10px)';
+                });
+            }
+        });
+    }
 
-// Enhanced smooth scrolling with progress indicator
-document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-    anchor.addEventListener('click', function (e) {
-        e.preventDefault();
-        
-        // Close mobile menu if open
-        if (navMenu && navMenu.classList.contains('active')) {
-            navMenu.classList.remove('active');
-            if (mobileMenuBtn) {
+    // Enhanced smooth scrolling with progress indicator
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            e.preventDefault();
+            
+            // Close mobile menu if open and both elements exist
+            if (navMenu && mobileMenuBtn && navMenu.classList.contains('active')) {
+                navMenu.classList.remove('active');
                 mobileMenuBtn.innerHTML = '<i class="fas fa-bars"></i>';
                 mobileMenuBtn.classList.remove('rotated');
             }
-        }
-        
-        const targetId = this.getAttribute('href');
-        const target = document.querySelector(targetId);
-        
-        if (target) {
-            // Highlight active nav item
-            document.querySelectorAll('nav a').forEach(link => link.classList.remove('active-link'));
-            this.classList.add('active-link');
             
-            // Smooth scroll with easing
-            window.scrollTo({
-                top: target.offsetTop - 60, // Account for fixed header
-                behavior: 'smooth'
-            });
+            const targetId = this.getAttribute('href');
+            const target = document.querySelector(targetId);
             
-            // Update URL without page reload
-            history.pushState(null, null, targetId);
-        }
+            if (target) {
+                // Highlight active nav item
+                document.querySelectorAll('nav a').forEach(link => link.classList.remove('active-link'));
+                this.classList.add('active-link');
+                
+                // Smooth scroll with easing
+                window.scrollTo({
+                    top: target.offsetTop - 60, // Account for fixed header
+                    behavior: 'smooth'
+                });
+                
+                // Update URL without page reload
+                history.pushState(null, null, targetId);
+            }
+        });
     });
 });
 
@@ -107,65 +108,67 @@ window.addEventListener('scroll', () => {
 });
 
 // Enhanced form submission with visual feedback
-const contactForm = document.getElementById('contactForm');
-if (contactForm) {
-    // Add input animations on focus
-    const formInputs = contactForm.querySelectorAll('input, textarea');
-    formInputs.forEach(input => {
-        const label = input.previousElementSibling;
-        if (label && label.tagName === 'LABEL') {
-            input.addEventListener('focus', () => {
-                label.classList.add('active-label');
-            });
-            
-            input.addEventListener('blur', () => {
-                if (input.value === '') {
-                    label.classList.remove('active-label');
+document.addEventListener('DOMContentLoaded', function() {
+    const contactForm = document.getElementById('contactForm');
+    if (contactForm) {
+        // Add input animations on focus
+        const formInputs = contactForm.querySelectorAll('input, textarea');
+        formInputs.forEach(input => {
+            const label = input.previousElementSibling;
+            if (label && label.tagName === 'LABEL') {
+                input.addEventListener('focus', () => {
+                    label.classList.add('active-label');
+                });
+                
+                input.addEventListener('blur', () => {
+                    if (input.value === '') {
+                        label.classList.remove('active-label');
+                    }
+                });
+                
+                // Check if input already has value on page load
+                if (input.value !== '') {
+                    label.classList.add('active-label');
                 }
-            });
-            
-            // Check if input already has value on page load
-            if (input.value !== '') {
-                label.classList.add('active-label');
             }
-        }
-    });
+        });
 
-    // Real-time validation with visual feedback
-    const emailInput = document.getElementById('email');
-    if (emailInput) {
-        emailInput.addEventListener('input', function() {
-            const isValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.value);
-            this.classList.toggle('invalid-input', !isValid && this.value !== '');
-            this.classList.toggle('valid-input', isValid);
+        // Real-time validation with visual feedback
+        const emailInput = document.getElementById('email');
+        if (emailInput) {
+            emailInput.addEventListener('input', function() {
+                const isValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.value);
+                this.classList.toggle('invalid-input', !isValid && this.value !== '');
+                this.classList.toggle('valid-input', isValid);
+            });
+        }
+        
+        contactForm.addEventListener('submit', function(e) {
+            // Don't prevent default submission since we're using the native action
+            // But still add visual feedback
+            
+            const submitBtn = contactForm.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                const originalBtnText = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<span class="spinner"></span> Sending...';
+                submitBtn.disabled = true;
+                
+                // Create a success message element
+                const successMessage = document.createElement('div');
+                successMessage.className = 'success-message';
+                successMessage.innerHTML = '<i class="fas fa-check-circle"></i> Sending your message...';
+                contactForm.appendChild(successMessage);
+                
+                // Remove message after delay to avoid cluttering if form submits
+                setTimeout(() => {
+                    if (document.contains(successMessage)) {
+                        successMessage.remove();
+                    }
+                }, 5000);
+            }
         });
     }
-    
-    contactForm.addEventListener('submit', function(e) {
-        // Don't prevent default submission since we're using the native action
-        // But still add visual feedback
-        
-        const submitBtn = contactForm.querySelector('button[type="submit"]');
-        if (submitBtn) {
-            const originalBtnText = submitBtn.innerHTML;
-            submitBtn.innerHTML = '<span class="spinner"></span> Sending...';
-            submitBtn.disabled = true;
-            
-            // Create a success message element
-            const successMessage = document.createElement('div');
-            successMessage.className = 'success-message';
-            successMessage.innerHTML = '<i class="fas fa-check-circle"></i> Sending your message...';
-            contactForm.appendChild(successMessage);
-            
-            // Remove message after delay to avoid cluttering if form submits
-            setTimeout(() => {
-                if (document.contains(successMessage)) {
-                    successMessage.remove();
-                }
-            }, 5000);
-        }
-    });
-}
+});
 
 // FIXED Dark mode toggle - This will definitely appear
 function createFixedDarkModeToggle() {
@@ -630,17 +633,17 @@ function initializeEnhancements() {
 }
 
 // Make sure enhancements run on page load using multiple approaches for reliability
-document.addEventListener('DOMContentLoaded', () => {
-    // Wait a moment to ensure DOM is ready
-    setTimeout(initializeEnhancements, 500);
-});
-
-// Also try on window load (catches images and other resources)
+// Use a load event instead of DOMContentLoaded for best compatibility
 window.addEventListener('load', () => {
+    // Wait a moment to ensure DOM is fully ready
     setTimeout(initializeEnhancements, 500);
 });
 
-// Try immediately in case page is already loaded
-if (document.readyState === 'complete' || document.readyState === 'interactive') {
-    setTimeout(initializeEnhancements, 100);
+// Also try running the initialization when script is loaded
+// Wrapped in a try-catch to prevent any errors from stopping execution
+try {
+    // Run with a delay to ensure page is ready
+    setTimeout(initializeEnhancements, 800);
+} catch (error) {
+    console.error('Error initializing enhancements:', error);
 }
