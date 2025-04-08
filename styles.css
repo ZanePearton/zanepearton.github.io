@@ -42,7 +42,12 @@ body {
 }
 
 /* Typography */
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif;
     font-weight: 600;
 }
@@ -729,6 +734,21 @@ footer {
     }
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 /* Creative About Section with Tech Sphere */
 .about-visual {
     flex: 1;
@@ -737,17 +757,17 @@ footer {
     align-items: center;
     min-height: 400px;
     perspective: 1000px;
-}
+  }
   
-.tech-sphere {
+  .tech-sphere {
     position: relative;
     width: 300px;
     height: 300px;
     transform-style: preserve-3d;
     animation: rotate-sphere 30s linear infinite;
-}
+  }
   
-.sphere-core {
+  .sphere-core {
     position: absolute;
     top: 50%;
     left: 50%;
@@ -761,16 +781,16 @@ footer {
     align-items: center;
     box-shadow: 0 0 20px rgba(255, 149, 0, 0.3);
     z-index: 10;
-}
+  }
   
-.sphere-text {
+  .sphere-text {
     color: white;
     font-size: 40px;
     font-weight: bold;
     text-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
-}
+  }
   
-.orbit {
+  .orbit {
     position: absolute;
     top: 50%;
     left: 50%;
@@ -778,9 +798,9 @@ footer {
     border: 1px dashed rgba(0, 0, 0, 0.1);
     border-radius: 50%;
     transform-style: preserve-3d;
-}
+  }
   
-.orbit-circle {
+  .orbit-circle {
     position: absolute;
     width: 40px;
     height: 40px;
@@ -791,446 +811,188 @@ footer {
     align-items: center;
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
     transition: all 0.3s ease;
-}
+  }
   
-.orbit-circle:hover {
+  .orbit-circle:hover {
     transform: scale(1.2);
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
-}
+  }
   
-.orbit-circle i {
+  .orbit-circle i {
     font-size: 18px;
-}
+  }
   
-/* Data Engineering Orbit */
-.data-orbit {
+  /* Data Engineering Orbit */
+  .data-orbit {
     width: 160px;
     height: 160px;
     animation: rotate-orbit 12s linear infinite;
-}
+  }
   
-.data-orbit .orbit-circle:nth-child(1) {
+  .data-orbit .orbit-circle:nth-child(1) {
     top: 0;
     left: 50%;
     transform: translate(-50%, -50%);
     color: #3498db;
-}
+  }
   
-.data-orbit .orbit-circle:nth-child(2) {
+  .data-orbit .orbit-circle:nth-child(2) {
     bottom: 0;
     left: 20%;
     transform: translate(-50%, 50%);
     color: #2980b9;
-}
+  }
   
-.data-orbit .orbit-circle:nth-child(3) {
+  .data-orbit .orbit-circle:nth-child(3) {
     bottom: 0;
     right: -30%;
     transform: translate(-50%, 50%);
     color: #00bcd4;
-}
+  }
   
-/* DevOps Orbit */
-.devops-orbit {
+  /* DevOps Orbit */
+  .devops-orbit {
     width: 200px;
     height: 200px;
     transform: translate(-50%, -50%) rotateX(60deg);
     animation: rotate-orbit 15s linear infinite reverse;
-}
+  }
   
-.devops-orbit .orbit-circle:nth-child(1) {
+  .devops-orbit .orbit-circle:nth-child(1) {
     top: 0;
     left: 80%;
     transform: translate(-50%, -50%);
     color: #2196f3;
-}
+  }
   
-.devops-orbit .orbit-circle:nth-child(2) {
+  .devops-orbit .orbit-circle:nth-child(2) {
     top: 70%;
     left: 10%;
     transform: translate(-50%, -50%);
     color: #ff9800;
-}
+  }
   
-.devops-orbit .orbit-circle:nth-child(3) {
+  .devops-orbit .orbit-circle:nth-child(3) {
     top: 30%;
     right: 0;
     transform: translate(-50%, -50%);
     color: #f44336;
-}
+  }
   
-/* Development Orbit */
-.dev-orbit {
+  /* Development Orbit */
+  .dev-orbit {
     width: 240px;
     height: 240px;
     transform: translate(-50%, -50%) rotateY(60deg);
     animation: rotate-orbit 20s linear infinite;
-}
+  }
   
-.dev-orbit .orbit-circle:nth-child(1) {
+  .dev-orbit .orbit-circle:nth-child(1) {
     top: 20%;
     left: 0;
     transform: translate(-50%, -50%);
     color: #4caf50;
-}
+  }
   
-.dev-orbit .orbit-circle:nth-child(2) {
+  .dev-orbit .orbit-circle:nth-child(2) {
     top: 50%;
     right: 0;
     transform: translate(50%, -50%);
     color: #ffeb3b;
-}
+  }
   
-.dev-orbit .orbit-circle:nth-child(3) {
+  .dev-orbit .orbit-circle:nth-child(3) {
     bottom: 0;
     left: 50%;
     transform: translate(-50%, 50%);
     color: #61dafb;
-}
+  }
   
-/* VR/AR Orbit */
-.vr-orbit {
+  /* VR/AR Orbit */
+  .vr-orbit {
     width: 280px;
     height: 280px;
     transform: translate(-50%, -50%) rotateX(30deg) rotateY(45deg);
     animation: rotate-orbit 25s linear infinite reverse;
-}
+  }
   
-.vr-orbit .orbit-circle:nth-child(1) {
+  .vr-orbit .orbit-circle:nth-child(1) {
     top: 15%;
     left: 15%;
     transform: translate(-50%, -50%);
     color: #9c27b0;
-}
+  }
   
-.vr-orbit .orbit-circle:nth-child(2) {
+  .vr-orbit .orbit-circle:nth-child(2) {
     top: 70%;
     right: 10%;
     transform: translate(-50%, -50%);
     color: #673ab7;
-}
+  }
   
-.vr-orbit .orbit-circle:nth-child(3) {
+  .vr-orbit .orbit-circle:nth-child(3) {
     top: 40%;
     right: 0;
     transform: translate(50%, -50%);
     color: #5e35b1;
-}
+  }
   
-/* Animations */
-@keyframes rotate-sphere {
+  /* Animations */
+  @keyframes rotate-sphere {
     0% {
-        transform: rotateY(0deg) rotateX(0deg);
+      transform: rotateY(0deg) rotateX(0deg);
     }
     100% {
-        transform: rotateY(360deg) rotateX(360deg);
+      transform: rotateY(360deg) rotateX(360deg);
     }
-}
+  }
   
-@keyframes rotate-orbit {
+  @keyframes rotate-orbit {
     0% {
-        transform: translate(-50%, -50%) rotate(0deg);
+      transform: translate(-50%, -50%) rotate(0deg);
     }
     100% {
-        transform: translate(-50%, -50%) rotate(360deg);
+      transform: translate(-50%, -50%) rotate(360deg);
     }
-}
+  }
   
-/* Make sure the tech sphere looks good on mobile */
-@media (max-width: 992px) {
+  /* Make sure the tech sphere looks good on mobile */
+  @media (max-width: 992px) {
     .about-container {
-        flex-direction: column;
+      flex-direction: column;
     }
     
     .about-visual {
-        min-height: 350px;
+      min-height: 350px;
     }
     
     .tech-sphere {
-        width: 250px;
-        height: 250px;
+      width: 250px;
+      height: 250px;
     }
-}
+  }
   
-@media (max-width: 768px) {
+  @media (max-width: 768px) {
     .tech-sphere {
-        width: 220px;
-        height: 220px;
+      width: 220px;
+      height: 220px;
     }
     
     .sphere-core {
-        width: 60px;
-        height: 60px;
+      width: 60px;
+      height: 60px;
     }
     
     .sphere-text {
-        font-size: 30px;
+      font-size: 30px;
     }
     
     .orbit-circle {
-        width: 30px;
-        height: 30px;
+      width: 30px;
+      height: 30px;
     }
     
     .orbit-circle i {
-        font-size: 14px;
+      font-size: 14px;
     }
-}
-
-/* Enhanced Dark Mode Styles */
-.dark-mode {
-    background-color: #121212 !important;
-    color: #f0f0f0 !important;
-}
-
-/* Header styling */
-.dark-mode header {
-    background-color: rgba(18, 18, 18, 0.8) !important;
-    border-bottom-color: rgba(255, 255, 255, 0.1) !important;
-}
-
-.dark-mode .logo,
-.dark-mode nav a {
-    color: #f0f0f0 !important;
-}
-
-.dark-mode nav a:hover {
-    color: var(--apple-orange) !important;
-}
-
-/* Section backgrounds */
-.dark-mode .hero:after {
-    background: linear-gradient(135deg, #1e1e1e 0%, #121212 100%) !important;
-}
-
-.dark-mode .hero,
-.dark-mode .about,
-.dark-mode .contact,
-.dark-mode .certifications {
-    background-color: #121212 !important;
-}
-
-.dark-mode .projects,
-.dark-mode footer {
-    background-color: #1a1a1a !important;
-}
-
-/* Text colors */
-.dark-mode h1, 
-.dark-mode h2, 
-.dark-mode h3, 
-.dark-mode h4, 
-.dark-mode h5, 
-.dark-mode h6,
-.dark-mode p {
-    color: #f0f0f0 !important;
-}
-
-.dark-mode .hero h2,
-.dark-mode .section-title p,
-.dark-mode .about-text,
-.dark-mode .contact-method p,
-.dark-mode .contact-method a,
-.dark-mode .certification-date,
-.dark-mode .copyright,
-.dark-mode .project-content p {
-    color: #aaaaaa !important;
-}
-
-/* Button styling */
-.dark-mode .apple-button-primary {
-    background: linear-gradient(to right, var(--apple-orange), var(--apple-purple)) !important;
-    color: white !important;
-}
-
-.dark-mode .apple-button-secondary {
-    background-color: rgba(255, 255, 255, 0.1) !important;
-    color: #f0f0f0 !important;
-    border-color: rgba(255, 255, 255, 0.2) !important;
-}
-
-.dark-mode .apple-button-secondary:hover {
-    background-color: rgba(255, 255, 255, 0.15) !important;
-}
-
-/* Cards and containers */
-.dark-mode .project-card,
-.dark-mode .certification-category,
-.dark-mode .contact-form {
-    background-color: #1e1e1e !important;
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2) !important;
-}
-
-.dark-mode .project-card:hover {
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3) !important;
-}
-
-/* Form elements */
-.dark-mode .form-control {
-    background-color: #2d2d2d !important;
-    color: #f0f0f0 !important;
-    border-color: #444 !important;
-}
-
-.dark-mode .form-label {
-    color: #aaaaaa !important;
-}
-
-.dark-mode .form-control:focus {
-    border-color: var(--apple-orange) !important;
-    box-shadow: 0 0 0 3px rgba(255, 149, 0, 0.2) !important;
-}
-
-/* Pills and tags */
-.dark-mode .skill-pill,
-.dark-mode .project-tag {
-    background-color: #333 !important;
-    color: #aaaaaa !important;
-}
-
-.dark-mode .skill-pill:hover {
-    background-color: #444 !important;
-}
-
-/* Tech sphere */
-.dark-mode .orbit {
-    border-color: rgba(255, 255, 255, 0.1) !important;
-}
-
-.dark-mode .orbit-circle {
-    background-color: #1e1e1e !important;
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3) !important;
-}
-
-.dark-mode .orbit-circle:hover {
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4) !important;
-}
-
-/* Certification items */
-.dark-mode .certification-item {
-    border-bottom-color: rgba(255, 255, 255, 0.1) !important;
-}
-
-.dark-mode .certification-item:hover {
-    background-color: rgba(255, 255, 255, 0.05) !important;
-}
-
-/* Important additions for visibility in dark mode */
-.dark-mode .certification-name {
-    color: #f0f0f0 !important;
-}
-
-.dark-mode .social-link {
-    color: #aaaaaa !important;
-}
-
-.dark-mode .social-link:hover {
-    color: var(--apple-orange) !important;
-}
-
-/* Menu animations */
-#mobileMenuBtn.rotated i {
-    transform: rotate(90deg);
-    transition: transform 0.3s ease;
-}
-
-#navMenu li {
-    opacity: 0;
-    transform: translateY(-10px);
-    transition: opacity 0.3s ease, transform 0.3s ease;
-}
-
-/* Form animations */
-.active-label {
-    transform: translateY(-20px) scale(0.8);
-    color: #3498db;
-    transition: all 0.3s ease;
-}
-
-.error-input {
-    border-color: #e74c3c !important;
-    animation: shake 0.5s;
-}
-
-.valid-input {
-    border-color: #2ecc71 !important;
-}
-
-.invalid-input {
-    border-color: #e74c3c !important;
-}
-
-/* Success and error messages */
-.success-message, .error-message {
-    padding: 15px;
-    margin-top: 15px;
-    border-radius: 5px;
-    opacity: 1;
-    transition: opacity 0.5s ease;
-}
-
-.success-message {
-    background-color: rgba(46, 204, 113, 0.2);
-    border-left: 4px solid #2ecc71;
-    color: #2ecc71;
-}
-
-.error-message {
-    background-color: rgba(231, 76, 60, 0.2);
-    border-left: 4px solid #e74c3c;
-    color: #e74c3c;
-}
-
-/* Loading spinner */
-.spinner {
-    display: inline-block;
-    width: 20px;
-    height: 20px;
-    border: 3px solid rgba(255,255,255,0.3);
-    border-radius: 50%;
-    border-top-color: white;
-    animation: spin 1s ease-in-out infinite;
-}
-
-/* Fade-in animation */
-.fade-in {
-    opacity: 0;
-    transform: translateY(20px);
-    transition: opacity 0.6s ease, transform 0.6s ease;
-}
-
-.fade-in.visible {
-    opacity: 1;
-    transform: translateY(0);
-}
-
-/* Back to top button */
-#backToTop.visible {
-    opacity: 1;
-    transform: translateY(0);
-}
-
-/* Animation keyframes */
-@keyframes shake {
-    0%, 100% { transform: translateX(0); }
-    25% { transform: translateX(-5px); }
-    75% { transform: translateX(5px); }
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-}
-
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
-
-
-.lazy-image {
-    opacity: 0;
-    transition: opacity 0.3s;
-}
-.lazy-image.loaded {
-    opacity: 1;
-}
+  }
