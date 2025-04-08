@@ -309,97 +309,164 @@ function createBackToTopButton() {
     });
 }
 
-// Implement lazy loading for images and iframes
+// Implement lazy loading for images and iframes with Intersection Observer
 function setupLazyLoading() {
-    // For regular images without data-src attribute
-    const images = document.querySelectorAll('img:not([loading])');
-    images.forEach(img => {
-        img.setAttribute('loading', 'lazy');
-        img.classList.add('lazy-image');
-    });
-    
-    // For YouTube iframes
-    const iframes = document.querySelectorAll('iframe[src*="youtube.com"]');
-    iframes.forEach(iframe => {
-        try {
-            // Store original src
-            const originalSrc = iframe.src;
+    // Only create the observer if it's supported
+    if ('IntersectionObserver' in window) {
+        // Configure the observer
+        const lazyLoadOptions = {
+            root: null, // Use viewport as root
+            rootMargin: '200px 0px', // Start loading when within 200px of viewport
+            threshold: 0.01 // Trigger when 1% of the element is visible
+        };
+        
+        // Create observers for images and iframes
+        const imageObserver = new IntersectionObserver((entries, observer) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const img = entry.target;
+                    
+                    // If using data-src attribute (common in lazy loading libraries)
+                    if (img.dataset.src) {
+                        img.src = img.dataset.src;
+                        img.removeAttribute('data-src');
+                    }
+                    
+                    img.classList.add('loaded');
+                    observer.unobserve(img); // Stop observing once loaded
+                }
+            });
+        }, lazyLoadOptions);
+        
+        // Create a specific observer for iframes with a more aggressive threshold
+        const iframeObserver = new IntersectionObserver((entries, observer) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const iframe = entry.target;
+                    
+                    // If has data-src attribute
+                    if (iframe.dataset.src) {
+                        iframe.src = iframe.dataset.src;
+                        iframe.removeAttribute('data-src');
+                    }
+                    
+                    iframe.classList.add('loaded');
+                    observer.unobserve(iframe);
+                }
+            });
+        }, {
+            root: null,
+            rootMargin: '400px 0px', // Even more aggressive preloading for iframes
+            threshold: 0.01
+        });
+        
+        // Apply to all images
+        const images = document.querySelectorAll('img:not(.loaded)');
+        images.forEach(img => {
+            // Add native lazy loading as a fallback
+            img.setAttribute('loading', 'lazy');
             
-            // Function to extract YouTube video ID
-            function getYouTubeID(url) {
-                const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-                const match = url.match(regExp);
-                return (match && match[2].length === 11) ? match[2] : null;
+            // Add fade-in animation class
+            img.classList.add('lazy-image');
+            
+            // Observe the image
+            imageObserver.observe(img);
+        });
+        
+        // Apply to all iframes that aren't already loaded
+        const iframes = document.querySelectorAll('iframe:not(.loaded)');
+        iframes.forEach(iframe => {
+            // For YouTube iframes, create optimized loading
+            if (iframe.src && iframe.src.includes('youtube.com')) {
+                // Store original src
+                const originalSrc = iframe.src;
+                iframe.dataset.src = originalSrc;
+                
+                // Extract video ID for thumbnail
+                const videoId = getYouTubeID(originalSrc);
+                
+                if (videoId) {
+                    // Create a lightweight placeholder
+                    const placeholderSrc = `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+                    
+                    // Create a lightweight wrapper that doesn't completely replace the iframe
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'youtube-placeholder';
+                    wrapper.style.position = 'relative';
+                    wrapper.style.width = '100%';
+                    wrapper.style.paddingBottom = '56.25%'; // 16:9 aspect ratio
+                    wrapper.style.backgroundImage = `url('${placeholderSrc}')`;
+                    wrapper.style.backgroundSize = 'cover';
+                    wrapper.style.backgroundPosition = 'center';
+                    wrapper.style.cursor = 'pointer';
+                    wrapper.style.borderRadius = '8px';
+                    wrapper.style.overflow = 'hidden';
+                    
+                    // Add a play button
+                    const playButton = document.createElement('div');
+                    playButton.className = 'play-button';
+                    playButton.style.position = 'absolute';
+                    playButton.style.top = '50%';
+                    playButton.style.left = '50%';
+                    playButton.style.transform = 'translate(-50%, -50%)';
+                    playButton.style.width = '60px';
+                    playButton.style.height = '60px';
+                    playButton.style.backgroundColor = 'rgba(255, 0, 0, 0.8)';
+                    playButton.style.borderRadius = '50%';
+                    playButton.style.display = 'flex';
+                    playButton.style.alignItems = 'center';
+                    playButton.style.justifyContent = 'center';
+                    
+                    // Use a simple icon to reduce DOM complexity
+                    playButton.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"></path></svg>';
+                    
+                    wrapper.appendChild(playButton);
+                    
+                    // Add overlay for better visual
+                    const overlay = document.createElement('div');
+                    overlay.style.position = 'absolute';
+                    overlay.style.top = '0';
+                    overlay.style.left = '0';
+                    overlay.style.width = '100%';
+                    overlay.style.height = '100%';
+                    overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.2)';
+                    wrapper.insertBefore(overlay, playButton);
+                    
+                    // Add this wrapper before the iframe
+                    iframe.parentNode.insertBefore(wrapper, iframe);
+                    
+                    // Hide the iframe until clicked
+                    iframe.style.display = 'none';
+                    
+                    // Handle click to play
+                    wrapper.addEventListener('click', function() {
+                        // Add autoplay parameter and load video
+                        iframe.src = originalSrc + (originalSrc.includes('?') ? '&' : '?') + 'autoplay=1';
+                        iframe.style.display = 'block';
+                        wrapper.style.display = 'none';
+                    });
+                }
+            } else {
+                // For non-YouTube iframes
+                iframeObserver.observe(iframe);
             }
-            
-            const videoId = getYouTubeID(originalSrc);
-            
-            if (videoId) {
-                // Remove src temporarily
-                iframe.removeAttribute('src');
-                
-                // Create a placeholder
-                const placeholder = document.createElement('div');
-                placeholder.className = 'youtube-placeholder';
-                placeholder.style.position = 'relative';
-                placeholder.style.width = '100%';
-                placeholder.style.height = '0';
-                placeholder.style.paddingBottom = '56.25%';
-                placeholder.style.backgroundSize = 'cover';
-                placeholder.style.backgroundPosition = 'center';
-                placeholder.style.backgroundImage = `url('https://img.youtube.com/vi/${videoId}/hqdefault.jpg')`;
-                placeholder.style.cursor = 'pointer';
-                placeholder.style.borderRadius = '8px';
-                placeholder.style.overflow = 'hidden';
-                
-                // Add play button
-                const playButton = document.createElement('div');
-                playButton.className = 'play-button';
-                playButton.style.position = 'absolute';
-                playButton.style.top = '50%';
-                playButton.style.left = '50%';
-                playButton.style.transform = 'translate(-50%, -50%)';
-                playButton.style.width = '60px';
-                playButton.style.height = '60px';
-                playButton.style.backgroundColor = 'rgba(255, 0, 0, 0.8)';
-                playButton.style.borderRadius = '50%';
-                playButton.style.display = 'flex';
-                playButton.style.alignItems = 'center';
-                playButton.style.justifyContent = 'center';
-                playButton.style.zIndex = '10';
-                playButton.style.transition = 'all 0.3s ease';
-                playButton.innerHTML = '<i class="fas fa-play" style="color: white; font-size: 24px; margin-left: 5px;"></i>';
-                
-                placeholder.appendChild(playButton);
-                
-                // Add overlay
-                const overlay = document.createElement('div');
-                overlay.style.position = 'absolute';
-                overlay.style.top = '0';
-                overlay.style.left = '0';
-                overlay.style.width = '100%';
-                overlay.style.height = '100%';
-                overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.3)';
-                placeholder.insertBefore(overlay, playButton);
-                
-                // Insert placeholder before iframe
-                iframe.parentNode.insertBefore(placeholder, iframe);
-                
-                // Hide iframe initially
-                iframe.style.display = 'none';
-                
-                // Add click handler to placeholder
-                placeholder.addEventListener('click', () => {
-                    // Restore src to load the video
-                    iframe.src = originalSrc + (originalSrc.includes('?') ? '&' : '?') + 'autoplay=1';
-                    iframe.style.display = 'block';
-                    placeholder.style.display = 'none';
-                });
-            }
-        } catch (error) {
-            console.error('Error setting up YouTube lazy loading:', error);
-        }
-    });
+        });
+        
+        console.log('Lazy loading set up with Intersection Observer');
+    } else {
+        // Fallback for browsers that don't support IntersectionObserver
+        console.log('Using native lazy loading as fallback');
+        document.querySelectorAll('img').forEach(img => {
+            img.setAttribute('loading', 'lazy');
+        });
+    }
+}
+
+// YouTube ID extraction helper
+function getYouTubeID(url) {
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    const match = url.match(regExp);
+    return (match && match[2].length === 11) ? match[2] : null;
 }
 
 // Add animation to tech sphere
@@ -483,36 +550,37 @@ function addFadeInToSections() {
     });
 }
 
-// Initialize all enhancements with multiple triggers to ensure they run
+// Initialize all enhancements without delays
 function initializeEnhancements() {
     createFixedDarkModeToggle();
     createScrollProgress();
     createBackToTopButton();
-    setupLazyLoading();
+    setupLazyLoading(); // This is now using the optimized implementation
     animateTechSphere();
     enhanceCertifications();
     addFadeInToSections();
 }
 
-// Make sure enhancements run on page load using multiple approaches for reliability
-// Use a load event instead of DOMContentLoaded for best compatibility
+// Make sure enhancements run on page load - removed unnecessary timeouts
 window.addEventListener('load', () => {
     console.log("Window loaded - initializing enhancements");
-    // Wait a moment to ensure DOM is fully ready
-    setTimeout(initializeEnhancements, 500);
+    initializeEnhancements();
 });
 
-// Also try running the initialization when script is loaded
+// Also run when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     console.log("DOM loaded - initializing enhancements");
-    setTimeout(initializeEnhancements, 300);
+    initializeEnhancements();
 });
 
 // Wrapped in a try-catch to prevent any errors from stopping execution
 try {
     // Run immediately as a fallback
     console.log("Immediate execution - initializing enhancements");
-    setTimeout(initializeEnhancements, 800);
+    initializeEnhancements();
 } catch (error) {
     console.error('Error initializing enhancements:', error);
 }
+
+
+*/
