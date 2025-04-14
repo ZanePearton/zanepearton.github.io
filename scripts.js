@@ -83,7 +83,7 @@ window.addEventListener('scroll', () => {
         const elementHeight = element.offsetHeight;
         const windowHeight = window.innerHeight;
 
-        if (elementTop < windowHeight - elementHeight * 1.1) {
+        if (elementTop < windowHeight + 300) {
             element.classList.add('visible');
         }
     });
