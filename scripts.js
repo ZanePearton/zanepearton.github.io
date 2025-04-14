@@ -83,7 +83,7 @@ window.addEventListener('scroll', () => {
         const windowHeight = window.innerHeight;
     
         // Make elements visible immediately if they're already in viewport on page load
-        if (elementTop < windowHeight + 300) {
+        if (elementTop < windowHeight + 30) {
             element.classList.add('visible');
         } else {
             // Only hide elements that aren't initially visible
