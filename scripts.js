@@ -77,21 +77,15 @@ window.addEventListener('scroll', () => {
     });
 
     // Fade in elements when they enter viewport
-    /* DISABLED 
     const fadeElements = document.querySelectorAll('.fade-in');
     fadeElements.forEach(element => {
         const elementTop = element.getBoundingClientRect().top;
+        const elementHeight = element.offsetHeight;
         const windowHeight = window.innerHeight;
-    
-        // Make elements visible immediately if they're already in viewport on page load
-        if (elementTop < windowHeight + 30) {
+
+        if (elementTop < windowHeight - elementHeight / 2) {
             element.classList.add('visible');
-        } else {
-            // Only hide elements that aren't initially visible
-            // This prevents the flash of content appearing then disappearing
-            element.style.opacity = '0';
-            element.style.transform = 'translateY(20px)';
-        }*/
+        }
     });
 
     // Progress bar for scroll position
