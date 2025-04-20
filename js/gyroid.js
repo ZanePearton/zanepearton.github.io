@@ -1,0 +1,429 @@
+// Import necessary modules
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { MarchingCubes } from 'three/addons/objects/MarchingCubes.js';
+
+// Setup renderer
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+// Setup scene
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xffffff);
+
+// Setup camera
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+camera.position.set(3, 3, 3);
+
+// Setup controls
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.1;
+
+// Add lighting
+scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+
+const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+directionalLight.position.set(1, 1, 1);
+scene.add(directionalLight);
+
+const secondLight = new THREE.DirectionalLight(0xffffff, 0.5);
+secondLight.position.set(-1, 0.5, -1);
+scene.add(secondLight);
+
+// Parameters for the gyroid
+let resolution = 50;
+let scale = 1.0;
+let wireframe = false;
+let animationEnabled = true;
+let period = 1.0;
+let thickness = 0.1;
+let animationSpeed = 1.0;
+let dataStreamEnabled = true;
+let surfaceColor = "gradient"; // Changed to gradient as default
+let clock = new THREE.Clock();
+
+// Object to hold the gyroid surface
+let gyroid = null;
+
+// Materials for the gyroid
+let material;
+let gradientTexture;
+
+// Function to create material based on selection
+function createMaterial() {
+    if (surfaceColor === "gradient") {
+        // Create a gradient texture
+        const canvas = document.createElement('canvas');
+        canvas.width = 512;
+        canvas.height = 512;
+        const context = canvas.getContext('2d');
+        
+        // Create gradient
+        const gradient = context.createLinearGradient(0, 0, canvas.width, canvas.height);
+        gradient.addColorStop(0, '#ff9500');  // Orange
+        gradient.addColorStop(1, '#af52de');  // Purple
+        
+        context.fillStyle = gradient;
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Create texture from canvas
+        gradientTexture = new THREE.CanvasTexture(canvas);
+        gradientTexture.needsUpdate = true;
+        
+        // Create material with gradient texture
+        material = new THREE.MeshPhongMaterial({
+            map: gradientTexture,
+            specular: 0x111111,
+            shininess: 50,
+            side: THREE.DoubleSide,
+            wireframe: wireframe
+        });
+    } else {
+        // Create standard material with solid color
+        material = new THREE.MeshPhongMaterial({
+            color: new THREE.Color(surfaceColor),
+            specular: 0x111111,
+            shininess: 50,
+            side: THREE.DoubleSide,
+            wireframe: wireframe
+        });
+    }
+    
+    return material;
+}
+
+// Initialize material
+material = createMaterial();
+
+// Function to create the gyroid using MarchingCubes
+function createGyroid() {
+    if (gyroid) {
+        scene.remove(gyroid);
+        if (gyroid.material.map) {
+            gyroid.material.map.dispose();
+        }
+        gyroid.material.dispose();
+    }
+    
+    // Create new material with current settings
+    material = createMaterial();
+    
+    // Size of the calculation grid
+    const gridSize = Math.floor(24 * scale);
+    
+    // Create a new marching cubes object
+    const marchingCubes = new MarchingCubes(gridSize, material, true, false, 100000);
+    marchingCubes.isolation = thickness;
+    
+    // Position the gyroid in the center of the scene
+    marchingCubes.position.set(0, 0, 0);
+    marchingCubes.scale.set(scale, scale, scale);
+    
+    // Calculate the gyroid field
+    updateGyroidField(marchingCubes);
+    
+    // Add to scene
+    gyroid = marchingCubes;
+    scene.add(gyroid);
+}
+
+// Function to update the gyroid field
+function updateGyroidField(object) {
+    if (!object) return;
+    
+    // Reset the field
+    object.reset();
+    
+    // Get current time for animation
+    const time = animationEnabled ? clock.getElapsedTime() * animationSpeed : 0;
+    
+    // Add gyroid to the field
+    for (let x = 0; x < object.size; x++) {
+        for (let y = 0; y < object.size; y++) {
+            for (let z = 0; z < object.size; z++) {
+                // Map coordinates to [-pi, pi] range
+                const xp = (x / object.size * 2 - 1) * Math.PI * period;
+                const yp = (y / object.size * 2 - 1) * Math.PI * period;
+                const zp = (z / object.size * 2 - 1) * Math.PI * period;
+                
+                // Animation offset
+                const offset = time * 0.1;
+                
+                // Standard gyroid equation
+                const gyroidValue = Math.sin(xp + offset) * Math.cos(yp) + 
+                                  Math.sin(yp) * Math.cos(zp + offset) + 
+                                  Math.sin(zp) * Math.cos(xp + offset);
+                
+                // Set the value in the field
+                object.setCell(x, y, z, gyroidValue);
+            }
+        }
+    }
+    
+    // Update the surface
+    object.update();
+}
+
+// Create the initial gyroid
+createGyroid();
+
+// Set up data stream visualization with time markers
+const dataViz = document.getElementById('data-viz');
+const dataVizContainer = document.getElementById('data-viz-container');
+const complexityValue = document.getElementById('complexity-value');
+const surfaceAreaValue = document.getElementById('surface-area-value');
+const curvatureValue = document.getElementById('curvature-value');
+
+const dataPoints = 80; // Number of data points to display
+const energyHistory = [];
+
+// Initialize data history
+for (let i = 0; i < dataPoints; i++) {
+    energyHistory.push(0);
+}
+
+// Create data bars
+for (let i = 0; i < dataPoints; i++) {
+    const dataBar = document.createElement('div');
+    dataBar.className = 'data-bar';
+    const position = (i / dataPoints) * 100;
+    dataBar.style.left = `${position}%`;
+    dataViz.appendChild(dataBar);
+}
+
+// Add time markers
+for (let i = 0; i <= 4; i++) {
+    const marker = document.createElement('div');
+    marker.className = 'time-marker';
+    marker.style.left = `${(i / 4) * 100}%`;
+    dataVizContainer.appendChild(marker);
+}
+
+// Calculate real-time metrics from the gyroid with more precision
+function calculateGyroidMetrics(object) {
+    if (!object) return { energy: 0, complexity: 0, surfaceArea: 0, curvature: 0 };
+    
+    // Get current time for calculations
+    const time = clock.getElapsedTime() * animationSpeed;
+    
+    // Sample points for calculations
+    const sampleSize = 24; // Increased for better precision
+    let energySum = 0;
+    let complexitySum = 0;
+    let curvatureSum = 0;
+    
+    // Calculate metrics based on the gyroid equation
+    for (let i = 0; i < sampleSize; i++) {
+        for (let j = 0; j < sampleSize; j++) {
+            for (let k = 0; k < sampleSize; k++) { // Added third dimension for more accurate sampling
+                // Generate sample points
+                const x = (i / sampleSize * 2 - 1) * Math.PI * period;
+                const y = (j / sampleSize * 2 - 1) * Math.PI * period;
+                const z = (k / sampleSize * 2 - 1) * Math.PI * period;
+                
+                // Gyroid equation components
+                const sx = Math.sin(x + time * 0.1);
+                const cx = Math.cos(x + time * 0.1);
+                const sy = Math.sin(y);
+                const cy = Math.cos(y);
+                const sz = Math.sin(z);
+                const cz = Math.cos(z + time * 0.1);
+                
+                // Calculate gyroid value
+                const gyroidValue = sx * cy + sy * cz + sz * cx;
+                
+                // Energy function (related to minimal surface properties)
+                energySum += Math.abs(gyroidValue);
+                
+                // Calculate partial derivatives for complexity
+                const dx = cy * cx + sz * (-sx);
+                const dy = sx * (-sy) + cz * cy;
+                const dz = sy * (-sz) + cx * cz;
+                
+                // Surface complexity (related to gradient magnitude)
+                const gradientMagnitude = Math.sqrt(dx*dx + dy*dy + dz*dz);
+                complexitySum += gradientMagnitude;
+                
+                // Better approximation of mean curvature
+                const dxx = cy * (-sx) + sz * (-cx);
+                const dyy = sx * (-cy) + cz * (-sy);
+                const dzz = sy * (-cz) + cx * (-sz);
+                
+                // More accurate curvature approximation
+                const laplacian = Math.abs(dxx + dyy + dzz);
+                curvatureSum += laplacian;
+            }
+        }
+    }
+    
+    // Normalize values with improved scaling
+    const totalSamples = sampleSize * sampleSize * sampleSize;
+    const energy = energySum / totalSamples * scale;
+    const complexity = complexitySum / totalSamples * (1 + 0.5 * period);
+    
+    // Calculate approximate surface area with better correlation to visual size
+    const surfaceArea = 12 * Math.PI * Math.pow(scale, 2) * 
+                      (1 + 0.2 * period) * (1 / (thickness + 0.05));
+    
+    // Normalize curvature with more meaningful scaling
+    const curvature = curvatureSum / totalSamples * 
+                    period * (1 / (thickness + 0.01));
+    
+    return {
+        energy: energy,
+        complexity: complexity, 
+        surfaceArea: surfaceArea,
+        curvature: curvature
+    };
+}
+
+// Function to update data stream visualization with enhanced visuals
+function updateDataStream() {
+    if (!dataStreamEnabled || !gyroid) return;
+    
+    // Calculate real metrics from the gyroid
+    const metrics = calculateGyroidMetrics(gyroid);
+    
+    // Update numeric displays with improved formatting
+    complexityValue.textContent = metrics.complexity.toFixed(2);
+    surfaceAreaValue.textContent = metrics.surfaceArea.toFixed(2);
+    curvatureValue.textContent = metrics.curvature.toFixed(2);
+    
+    // Shift data history and add new value
+    energyHistory.shift();
+    
+    // Scale value to make visualization more dynamic and informative
+    const scaledEnergy = metrics.energy * 50; 
+    energyHistory.push(scaledEnergy);
+    
+    // Update energy function bars with improved visual feedback
+    const dataBars = dataViz.querySelectorAll('.data-bar');
+    for (let i = 0; i < dataPoints; i++) {
+        // Set height with slight easing for smoother transitions
+        const targetHeight = Math.min(energyHistory[i], 60); // Cap at the height of the viz
+        dataBars[i].style.height = `${targetHeight}px`;
+        
+        // Add highlight effects to the most recent data points
+        if (i > dataPoints - 8) {
+            dataBars[i].classList.add('active');
+            // Increase opacity for the very latest points
+            const opacity = 0.7 + (i - (dataPoints - 8)) * 0.05;
+            dataBars[i].style.opacity = opacity;
+        } else {
+            dataBars[i].classList.remove('active');
+            dataBars[i].style.opacity = "0.7";
+        }
+    }
+}
+
+// Animation loop
+function animate() {
+    requestAnimationFrame(animate);
+    
+    if (animationEnabled && gyroid) {
+        updateGyroidField(gyroid);
+    }
+    
+    updateDataStream();
+    controls.update();
+    renderer.render(scene, camera);
+}
+animate();
+
+// Set up event listeners for controls
+function setupEventListeners() {
+    document.getElementById('update-btn').addEventListener('click', createGyroid);
+
+    document.getElementById('resolution-slider').addEventListener('input', (e) => {
+        resolution = parseInt(e.target.value);
+        document.getElementById('resolution-value').textContent = resolution;
+    });
+
+    document.getElementById('scale-slider').addEventListener('input', (e) => {
+        scale = parseFloat(e.target.value);
+        document.getElementById('scale-value').textContent = scale.toFixed(1);
+    });
+
+    document.getElementById('wireframe-toggle').addEventListener('change', (e) => {
+        wireframe = e.target.value === 'true';
+        if (gyroid) {
+            // Always recreate material to apply wireframe properly
+            createGyroid();
+        }
+    });
+
+    document.getElementById('animation-toggle').addEventListener('change', (e) => {
+        animationEnabled = e.target.value === 'true';
+    });
+
+    document.getElementById('period-slider').addEventListener('input', (e) => {
+        period = parseFloat(e.target.value);
+        document.getElementById('period-value').textContent = period.toFixed(1);
+    });
+
+    document.getElementById('thickness-slider').addEventListener('input', (e) => {
+        thickness = parseFloat(e.target.value);
+        document.getElementById('thickness-value').textContent = thickness.toFixed(2);
+        if (gyroid) {
+            gyroid.isolation = thickness;
+            updateGyroidField(gyroid);
+        }
+    });
+
+    document.getElementById('animation-speed-slider').addEventListener('input', (e) => {
+        animationSpeed = parseFloat(e.target.value);
+        document.getElementById('animation-speed-value').textContent = animationSpeed.toFixed(1);
+    });
+    
+    document.getElementById('color-picker').addEventListener('change', (e) => {
+        surfaceColor = e.target.value;
+        if (gyroid) {
+            // Need to recreate the material when changing color
+            createGyroid();
+        }
+    });
+    
+    document.getElementById('data-stream-toggle').addEventListener('change', (e) => {
+        dataStreamEnabled = e.target.value === 'true';
+        document.getElementById('data-stream').style.display = dataStreamEnabled ? 'block' : 'none';
+        
+        // Adjust controls height when data stream is toggled
+        if (dataStreamEnabled) {
+            document.getElementById('controls').style.maxHeight = 'calc(100vh - 270px)';
+        } else {
+            document.getElementById('controls').style.maxHeight = 'calc(100vh - 100px)';
+        }
+    });
+
+    // Dark mode toggle with improved transition
+    const darkModeToggle = document.getElementById('dark-mode-toggle');
+    let darkMode = false;
+    
+    darkModeToggle.addEventListener('click', () => {
+        darkMode = !darkMode;
+        if (darkMode) {
+            document.body.classList.add('dark-mode');
+            scene.background = new THREE.Color(0x121212);
+        } else {
+            document.body.classList.remove('dark-mode');
+            scene.background = new THREE.Color(0xffffff);
+        }
+    });
+
+    // Resize handler with throttling for better performance
+    let resizeTimeout;
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }, 100);
+    });
+}
+
+// Initialize event listeners when the DOM is fully loaded
+document.addEventListener('DOMContentLoaded', setupEventListeners);
