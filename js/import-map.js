@@ -15,8 +15,3 @@ script.type = 'importmap';
 script.textContent = JSON.stringify(importMap);
 document.currentScript.after(script);
 
-// Add Font Awesome CSS
-const fontAwesomeLink = document.createElement('link');
-fontAwesomeLink.rel = 'stylesheet';
-fontAwesomeLink.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css';
-document.head.appendChild(fontAwesomeLink);
