@@ -147,7 +147,7 @@ function createMaterial() {
             
         case 'wireframe':
             newMaterial = new THREE.MeshPhongMaterial({
-                color: 0x000000,
+                color: 0xCCCCCC,
                 wireframe: true,
                 side: THREE.DoubleSide
             });
