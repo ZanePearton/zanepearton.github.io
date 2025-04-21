@@ -1135,9 +1135,12 @@ footer {
     color: var(--apple-orange) !important;
 }
 
-/* Dark Mode Controls Panel Fixes */
-.dark-mode .controls-inner {
+/* Controls Panel Dark Mode Styles 
+   Add this to your main CSS file */
+
+   .dark-mode .controls-inner {
     background-color: rgba(30, 30, 30, 0.8) !important;
+    color: #f0f0f0 !important;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3) !important;
 }
 
@@ -1161,6 +1164,10 @@ footer {
     background: #444 !important;
 }
 
+.dark-mode #controls input[type="range"]::-webkit-slider-thumb {
+    background: linear-gradient(to right, var(--apple-orange), var(--apple-purple)) !important;
+}
+
 .dark-mode #controls select {
     background-color: #2d2d2d !important;
     color: #f0f0f0 !important;
@@ -1173,6 +1180,18 @@ footer {
     color: white !important;
 }
 
+/* Minimize button styling */
+.dark-mode #minimizeControls {
+    background: linear-gradient(to right, var(--apple-orange), var(--apple-purple)) !important;
+    color: white !important;
+}
+
+/* Force immediate application of dark mode */
+.dark-mode #controls,
+.dark-mode .controls-inner {
+    transition: background-color 0.3s ease !important;
+}
+
 /* Fix for info panel in dark mode */
 .dark-mode #info {
     background-color: rgba(30, 30, 30, 0.8) !important;
@@ -1182,6 +1201,7 @@ footer {
 .dark-mode #info p {
     color: #aaaaaa !important;
 }
+
 
 /* Menu animations */
 #mobileMenuBtn.rotated i {
