@@ -7,6 +7,7 @@ import { MarchingCubes } from 'three/addons/objects/MarchingCubes.js';
 let renderer, scene, camera, controls;
 let gyroid, material, gradientTexture;
 let clock = new THREE.Clock();
+let gridHelper, axisHelper;
 
 // Configuration parameters
 let config = {
@@ -16,7 +17,8 @@ let config = {
     scaleY: 0.6,
     scaleZ: 1.0,
     colorScheme: 'normals',
-    rotationSpeed: 1.0
+    rotationSpeed: 1.0,
+    showGrid: true
 };
 
 // Initialize the visualization
@@ -40,6 +42,14 @@ function init() {
     // Setup scene with appropriate background color
     scene = new THREE.Scene();
     scene.background = new THREE.Color(isDarkMode ? 0x121212 : 0xffffff);
+
+    // Create and add a grid helper
+    gridHelper = new THREE.GridHelper(10, 10);
+    scene.add(gridHelper);
+
+    // Add axis helper to show X, Y, Z directions
+    axisHelper = new THREE.AxesHelper(5);
+    scene.add(axisHelper);
     
     console.log("Three.js scene initialized with", isDarkMode ? "dark" : "light", "background");
 
@@ -79,6 +89,17 @@ function init() {
     animate();
     
     console.log("Gyroid visualization initialized");
+}
+
+// Function to toggle grid visibility
+function toggleGrid() {
+    config.showGrid = !config.showGrid;
+    if (gridHelper) {
+        gridHelper.visible = config.showGrid;
+    }
+    if (axisHelper) {
+        axisHelper.visible = config.showGrid;
+    }
 }
 
 // Listen for dark mode changes
@@ -413,6 +434,31 @@ function setupEventListeners() {
         });
     }
     
+    // Grid toggle button
+    const gridToggleButton = document.getElementById('gridToggle');
+    if (gridToggleButton) {
+        gridToggleButton.addEventListener('click', toggleGrid);
+    } else {
+        // Create a button if it doesn't exist
+        const button = document.createElement('button');
+        button.id = 'gridToggle';
+        button.textContent = 'Toggle Grid';
+        button.addEventListener('click', toggleGrid);
+        
+        // Find the control panel to add the button to
+        const controlPanel = document.querySelector('.control-panel');
+        if (controlPanel) {
+            controlPanel.appendChild(button);
+        } else {
+            // If no control panel exists, create a simple floating button
+            button.style.position = 'absolute';
+            button.style.bottom = '20px';
+            button.style.right = '20px';
+            button.style.zIndex = '1000';
+            document.body.appendChild(button);
+        }
+    }
+    
     // Reset button
     const resetButton = document.getElementById('resetButton');
     
@@ -426,7 +472,8 @@ function setupEventListeners() {
                 scaleY: 0.6,
                 scaleZ: 1.0,
                 colorScheme: 'normals',
-                rotationSpeed: 1.0
+                rotationSpeed: 1.0,
+                showGrid: true
             };
             
             // Update UI to reflect reset values
@@ -462,6 +509,14 @@ function setupEventListeners() {
             if (rotationSpeedSlider && rotationSpeedValue) {
                 rotationSpeedSlider.value = config.rotationSpeed;
                 rotationSpeedValue.textContent = config.rotationSpeed.toFixed(1);
+            }
+            
+            // Update grid visibility
+            if (gridHelper) {
+                gridHelper.visible = config.showGrid;
+            }
+            if (axisHelper) {
+                axisHelper.visible = config.showGrid;
             }
             
             // Recreate gyroid with reset values
