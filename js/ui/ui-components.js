@@ -48,6 +48,12 @@ export function createFixedDarkModeToggle() {
         console.log("Applying dark mode class to body");
         document.body.classList.add('dark-mode');
         darkModeToggle.innerHTML = '<i class="fas fa-sun"></i>';
+        
+        // Dispatch initial darkModeChange event
+        const initialEvent = new CustomEvent('darkModeChange', {
+            detail: { isDarkMode: true }
+        });
+        document.dispatchEvent(initialEvent);
     }
 
     // Add click event
@@ -66,6 +72,14 @@ export function createFixedDarkModeToggle() {
 
         // Animate transition
         document.body.style.transition = 'background-color 0.5s, color 0.5s';
+        
+        // Dispatch custom event for dark mode change
+        const darkModeEvent = new CustomEvent('darkModeChange', {
+            detail: { isDarkMode: isDark }
+        });
+        document.dispatchEvent(darkModeEvent);
+        console.log("Dispatched darkModeChange event");
+        
         setTimeout(() => {
             document.body.style.transition = '';
         }, 500);
@@ -138,3 +152,58 @@ export function createBackToTopButton() {
         });
     });
 }
+
+// Function to update controls for dark mode
+export function updateControlsForDarkMode() {
+    const isDarkMode = document.body.classList.contains('dark-mode');
+    console.log("Updating controls for dark mode:", isDarkMode);
+    
+    // Force repaint of controls panel
+    const controlsInner = document.querySelector('.controls-inner');
+    if (controlsInner) {
+        // This technique forces a repaint by temporarily modifying display
+        controlsInner.style.display = 'none';
+        // Trigger reflow
+        void controlsInner.offsetHeight;
+        controlsInner.style.display = '';
+    }
+}
+
+// Set up dark mode listeners
+export function setupDarkModeListeners() {
+    // Listen for dark mode toggle events
+    document.addEventListener('darkModeChange', function(event) {
+        console.log("Received darkModeChange event", event.detail);
+        updateControlsForDarkMode();
+    });
+
+    // Watch for class changes on body using MutationObserver as a fallback
+    const darkModeObserver = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            if (mutation.attributeName === 'class') {
+                updateControlsForDarkMode();
+            }
+        });
+    });
+
+    // Start observing
+    darkModeObserver.observe(document.body, { attributes: true });
+
+    // Run initial check
+    updateControlsForDarkMode();
+    
+    console.log("Dark mode listeners set up");
+}
+
+// Initialize all UI components
+export function initializeUIComponents() {
+    createFixedDarkModeToggle();
+    createScrollProgress();
+    createBackToTopButton();
+    setupDarkModeListeners();
+    
+    console.log("All UI components initialized");
+}
+
+// Auto-initialize on DOM content loaded
+document.addEventListener('DOMContentLoaded', initializeUIComponents);
