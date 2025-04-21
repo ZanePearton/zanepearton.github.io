@@ -1301,6 +1301,7 @@ header .title {
     width: 10px !important;
     min-width: 10px !important;
     max-width: 10px !important;
+    flex: 0 0 40px !important; 
     background: linear-gradient(to bottom, var(--apple-orange), var(--apple-purple));
     border: none;
     color: white;
