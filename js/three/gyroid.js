@@ -3,102 +3,167 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { MarchingCubes } from 'three/addons/objects/MarchingCubes.js';
 
-// Setup renderer
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(window.devicePixelRatio);
-renderer.setSize(window.innerWidth, window.innerHeight);
-document.getElementById('canvas-container').appendChild(renderer.domElement);
-
-// Setup scene
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xffffff);
-
-// Setup camera
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.set(3, 3, 3);
-
-// Setup controls
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
-controls.dampingFactor = 0.1;
-
-// Add lighting
-scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-
-const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-directionalLight.position.set(1, 1, 1);
-scene.add(directionalLight);
-
-const secondLight = new THREE.DirectionalLight(0xffffff, 0.5);
-secondLight.position.set(-1, 0.5, -1);
-scene.add(secondLight);
-
-// Parameters for the gyroid
-let resolution = 50;
-let scale = 1.0;
-let wireframe = false;
-let animationEnabled = true;
-let period = 1.0;
-let thickness = 0.1;
-let animationSpeed = 1.0;
-let dataStreamEnabled = true;
-let surfaceColor = "gradient"; // Changed to gradient as default
+// Initialize variables
+let renderer, scene, camera, controls;
+let gyroid, material, gradientTexture;
 let clock = new THREE.Clock();
 
-// Object to hold the gyroid surface
-let gyroid = null;
+// Configuration parameters
+let config = {
+    resolution: 32,
+    isoLevel: 0,
+    scaleX: 1.0,
+    scaleY: 1.0,
+    scaleZ: 1.0,
+    colorScheme: 'gradient',
+    rotationSpeed: 1.0
+};
 
-// Materials for the gyroid
-let material;
-let gradientTexture;
-
-// Function to create material based on selection
-function createMaterial() {
-    if (surfaceColor === "gradient") {
-        // Create a gradient texture
-        const canvas = document.createElement('canvas');
-        canvas.width = 512;
-        canvas.height = 512;
-        const context = canvas.getContext('2d');
-        
-        // Create gradient
-        const gradient = context.createLinearGradient(0, 0, canvas.width, canvas.height);
-        gradient.addColorStop(0, '#ff9500');  // Orange
-        gradient.addColorStop(1, '#af52de');  // Purple
-        
-        context.fillStyle = gradient;
-        context.fillRect(0, 0, canvas.width, canvas.height);
-        
-        // Create texture from canvas
-        gradientTexture = new THREE.CanvasTexture(canvas);
-        gradientTexture.needsUpdate = true;
-        
-        // Create material with gradient texture
-        material = new THREE.MeshPhongMaterial({
-            map: gradientTexture,
-            specular: 0x111111,
-            shininess: 50,
-            side: THREE.DoubleSide,
-            wireframe: wireframe
-        });
-    } else {
-        // Create standard material with solid color
-        material = new THREE.MeshPhongMaterial({
-            color: new THREE.Color(surfaceColor),
-            specular: 0x111111,
-            shininess: 50,
-            side: THREE.DoubleSide,
-            wireframe: wireframe
-        });
-    }
+// Initialize the visualization
+function init() {
+    // Setup renderer
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setSize(window.innerWidth, window.innerHeight);
     
-    return material;
+    const container = document.getElementById('canvas-container');
+    if (container) {
+        container.appendChild(renderer.domElement);
+    } else {
+        console.error("Canvas container not found, appending to body");
+        document.body.appendChild(renderer.domElement);
+    }
+
+    // Setup scene
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xffffff);
+
+    // Setup camera
+    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(3, 3, 3);
+
+    // Setup controls
+    controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.1;
+
+    // Add lighting
+    scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight.position.set(1, 1, 1);
+    scene.add(directionalLight);
+
+    const secondLight = new THREE.DirectionalLight(0xffffff, 0.5);
+    secondLight.position.set(-1, 0.5, -1);
+    scene.add(secondLight);
+    
+    // Create gyroid
+    createGyroid();
+    
+    // Setup event listeners
+    setupEventListeners();
+    
+    // Handle window resize
+    window.addEventListener('resize', onWindowResize);
+    
+    // Start animation loop
+    animate();
+    
+    console.log("Gyroid visualization initialized");
 }
 
-// Initialize material
-material = createMaterial();
+// Create material based on color scheme selection
+function createMaterial() {
+    let newMaterial;
+    
+    switch(config.colorScheme) {
+        case 'gradient':
+            // Create a gradient texture
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 512;
+            const context = canvas.getContext('2d');
+            
+            // Create gradient from orange to purple
+            const gradient = context.createLinearGradient(0, 0, canvas.width, canvas.height);
+            gradient.addColorStop(0, '#ff9500');  // Orange
+            gradient.addColorStop(1, '#af52de');  // Purple
+            
+            context.fillStyle = gradient;
+            context.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Create texture from canvas
+            gradientTexture = new THREE.CanvasTexture(canvas);
+            gradientTexture.needsUpdate = true;
+            
+            newMaterial = new THREE.MeshPhongMaterial({
+                map: gradientTexture,
+                specular: 0x111111,
+                shininess: 50,
+                side: THREE.DoubleSide,
+                wireframe: config.colorScheme === 'wireframe'
+            });
+            break;
+            
+        case 'wireframe':
+            newMaterial = new THREE.MeshPhongMaterial({
+                color: 0x000000,
+                wireframe: true,
+                side: THREE.DoubleSide
+            });
+            break;
+            
+        case 'rainbow':
+            // Create rainbow color material
+            const rainbowCanvas = document.createElement('canvas');
+            rainbowCanvas.width = 512;
+            rainbowCanvas.height = 512;
+            const rainbowContext = rainbowCanvas.getContext('2d');
+            
+            // Create rainbow gradient
+            const rainbowGradient = rainbowContext.createLinearGradient(0, 0, rainbowCanvas.width, 0);
+            rainbowGradient.addColorStop(0, '#ff0000');
+            rainbowGradient.addColorStop(1/6, '#ff9900');
+            rainbowGradient.addColorStop(2/6, '#ffff00');
+            rainbowGradient.addColorStop(3/6, '#00ff00');
+            rainbowGradient.addColorStop(4/6, '#0099ff');
+            rainbowGradient.addColorStop(5/6, '#0000ff');
+            rainbowGradient.addColorStop(1, '#9900ff');
+            
+            rainbowContext.fillStyle = rainbowGradient;
+            rainbowContext.fillRect(0, 0, rainbowCanvas.width, rainbowCanvas.height);
+            
+            const rainbowTexture = new THREE.CanvasTexture(rainbowCanvas);
+            rainbowTexture.needsUpdate = true;
+            
+            newMaterial = new THREE.MeshPhongMaterial({
+                map: rainbowTexture,
+                specular: 0x222222,
+                shininess: 60,
+                side: THREE.DoubleSide
+            });
+            break;
+            
+        case 'normals':
+            newMaterial = new THREE.MeshNormalMaterial({
+                side: THREE.DoubleSide
+            });
+            break;
+            
+        default:
+            newMaterial = new THREE.MeshPhongMaterial({
+                color: 0x0088ff,
+                specular: 0x111111,
+                shininess: 50,
+                side: THREE.DoubleSide
+            });
+    }
+    
+    return newMaterial;
+}
 
-// Function to create the gyroid using MarchingCubes
+// Create or update the gyroid using MarchingCubes
 function createGyroid() {
     if (gyroid) {
         scene.remove(gyroid);
@@ -111,16 +176,13 @@ function createGyroid() {
     // Create new material with current settings
     material = createMaterial();
     
-    // Size of the calculation grid
-    const gridSize = Math.floor(24 * scale);
-    
     // Create a new marching cubes object
-    const marchingCubes = new MarchingCubes(gridSize, material, true, false, 100000);
-    marchingCubes.isolation = thickness;
+    const marchingCubes = new MarchingCubes(config.resolution, material, true, false, 100000);
+    marchingCubes.isolation = config.isoLevel;
     
     // Position the gyroid in the center of the scene
     marchingCubes.position.set(0, 0, 0);
-    marchingCubes.scale.set(scale, scale, scale);
+    marchingCubes.scale.set(config.scaleX, config.scaleY, config.scaleZ);
     
     // Calculate the gyroid field
     updateGyroidField(marchingCubes);
@@ -130,7 +192,7 @@ function createGyroid() {
     scene.add(gyroid);
 }
 
-// Function to update the gyroid field
+// Update the gyroid field
 function updateGyroidField(object) {
     if (!object) return;
     
@@ -138,16 +200,19 @@ function updateGyroidField(object) {
     object.reset();
     
     // Get current time for animation
-    const time = animationEnabled ? clock.getElapsedTime() * animationSpeed : 0;
+    const time = clock.getElapsedTime() * config.rotationSpeed;
     
-    // Add gyroid to the field
-    for (let x = 0; x < object.size; x++) {
-        for (let y = 0; y < object.size; y++) {
-            for (let z = 0; z < object.size; z++) {
+    // Calculate the gyroid field
+    const size = object.size;
+    const period = 1.0;
+    
+    for (let x = 0; x < size; x++) {
+        for (let y = 0; y < size; y++) {
+            for (let z = 0; z < size; z++) {
                 // Map coordinates to [-pi, pi] range
-                const xp = (x / object.size * 2 - 1) * Math.PI * period;
-                const yp = (y / object.size * 2 - 1) * Math.PI * period;
-                const zp = (z / object.size * 2 - 1) * Math.PI * period;
+                const xp = (x / size * 2 - 1) * Math.PI * period;
+                const yp = (y / size * 2 - 1) * Math.PI * period;
+                const zp = (z / size * 2 - 1) * Math.PI * period;
                 
                 // Animation offset
                 const offset = time * 0.1;
@@ -167,263 +232,204 @@ function updateGyroidField(object) {
     object.update();
 }
 
-// Create the initial gyroid
-createGyroid();
-
-// Set up data stream visualization with time markers
-const dataViz = document.getElementById('data-viz');
-const dataVizContainer = document.getElementById('data-viz-container');
-const complexityValue = document.getElementById('complexity-value');
-const surfaceAreaValue = document.getElementById('surface-area-value');
-const curvatureValue = document.getElementById('curvature-value');
-
-const dataPoints = 80; // Number of data points to display
-const energyHistory = [];
-
-// Initialize data history
-for (let i = 0; i < dataPoints; i++) {
-    energyHistory.push(0);
-}
-
-// Create data bars
-for (let i = 0; i < dataPoints; i++) {
-    const dataBar = document.createElement('div');
-    dataBar.className = 'data-bar';
-    const position = (i / dataPoints) * 100;
-    dataBar.style.left = `${position}%`;
-    dataViz.appendChild(dataBar);
-}
-
-// Add time markers
-for (let i = 0; i <= 4; i++) {
-    const marker = document.createElement('div');
-    marker.className = 'time-marker';
-    marker.style.left = `${(i / 4) * 100}%`;
-    dataVizContainer.appendChild(marker);
-}
-
-// Calculate real-time metrics from the gyroid with more precision
-function calculateGyroidMetrics(object) {
-    if (!object) return { energy: 0, complexity: 0, surfaceArea: 0, curvature: 0 };
-    
-    // Get current time for calculations
-    const time = clock.getElapsedTime() * animationSpeed;
-    
-    // Sample points for calculations
-    const sampleSize = 24; // Increased for better precision
-    let energySum = 0;
-    let complexitySum = 0;
-    let curvatureSum = 0;
-    
-    // Calculate metrics based on the gyroid equation
-    for (let i = 0; i < sampleSize; i++) {
-        for (let j = 0; j < sampleSize; j++) {
-            for (let k = 0; k < sampleSize; k++) { // Added third dimension for more accurate sampling
-                // Generate sample points
-                const x = (i / sampleSize * 2 - 1) * Math.PI * period;
-                const y = (j / sampleSize * 2 - 1) * Math.PI * period;
-                const z = (k / sampleSize * 2 - 1) * Math.PI * period;
-                
-                // Gyroid equation components
-                const sx = Math.sin(x + time * 0.1);
-                const cx = Math.cos(x + time * 0.1);
-                const sy = Math.sin(y);
-                const cy = Math.cos(y);
-                const sz = Math.sin(z);
-                const cz = Math.cos(z + time * 0.1);
-                
-                // Calculate gyroid value
-                const gyroidValue = sx * cy + sy * cz + sz * cx;
-                
-                // Energy function (related to minimal surface properties)
-                energySum += Math.abs(gyroidValue);
-                
-                // Calculate partial derivatives for complexity
-                const dx = cy * cx + sz * (-sx);
-                const dy = sx * (-sy) + cz * cy;
-                const dz = sy * (-sz) + cx * cz;
-                
-                // Surface complexity (related to gradient magnitude)
-                const gradientMagnitude = Math.sqrt(dx*dx + dy*dy + dz*dz);
-                complexitySum += gradientMagnitude;
-                
-                // Better approximation of mean curvature
-                const dxx = cy * (-sx) + sz * (-cx);
-                const dyy = sx * (-cy) + cz * (-sy);
-                const dzz = sy * (-cz) + cx * (-sz);
-                
-                // More accurate curvature approximation
-                const laplacian = Math.abs(dxx + dyy + dzz);
-                curvatureSum += laplacian;
-            }
-        }
-    }
-    
-    // Normalize values with improved scaling
-    const totalSamples = sampleSize * sampleSize * sampleSize;
-    const energy = energySum / totalSamples * scale;
-    const complexity = complexitySum / totalSamples * (1 + 0.5 * period);
-    
-    // Calculate approximate surface area with better correlation to visual size
-    const surfaceArea = 12 * Math.PI * Math.pow(scale, 2) * 
-                      (1 + 0.2 * period) * (1 / (thickness + 0.05));
-    
-    // Normalize curvature with more meaningful scaling
-    const curvature = curvatureSum / totalSamples * 
-                    period * (1 / (thickness + 0.01));
-    
-    return {
-        energy: energy,
-        complexity: complexity, 
-        surfaceArea: surfaceArea,
-        curvature: curvature
-    };
-}
-
-// Function to update data stream visualization with enhanced visuals
-function updateDataStream() {
-    if (!dataStreamEnabled || !gyroid) return;
-    
-    // Calculate real metrics from the gyroid
-    const metrics = calculateGyroidMetrics(gyroid);
-    
-    // Update numeric displays with improved formatting
-    complexityValue.textContent = metrics.complexity.toFixed(2);
-    surfaceAreaValue.textContent = metrics.surfaceArea.toFixed(2);
-    curvatureValue.textContent = metrics.curvature.toFixed(2);
-    
-    // Shift data history and add new value
-    energyHistory.shift();
-    
-    // Scale value to make visualization more dynamic and informative
-    const scaledEnergy = metrics.energy * 50; 
-    energyHistory.push(scaledEnergy);
-    
-    // Update energy function bars with improved visual feedback
-    const dataBars = dataViz.querySelectorAll('.data-bar');
-    for (let i = 0; i < dataPoints; i++) {
-        // Set height with slight easing for smoother transitions
-        const targetHeight = Math.min(energyHistory[i], 60); // Cap at the height of the viz
-        dataBars[i].style.height = `${targetHeight}px`;
-        
-        // Add highlight effects to the most recent data points
-        if (i > dataPoints - 8) {
-            dataBars[i].classList.add('active');
-            // Increase opacity for the very latest points
-            const opacity = 0.7 + (i - (dataPoints - 8)) * 0.05;
-            dataBars[i].style.opacity = opacity;
-        } else {
-            dataBars[i].classList.remove('active');
-            dataBars[i].style.opacity = "0.7";
-        }
-    }
-}
-
 // Animation loop
 function animate() {
     requestAnimationFrame(animate);
     
-    if (animationEnabled && gyroid) {
-        updateGyroidField(gyroid);
+    // Update controls
+    controls.update();
+    
+    // Rotate the gyroid
+    if (gyroid && config.rotationSpeed > 0) {
+        gyroid.rotation.y += 0.002 * config.rotationSpeed;
     }
     
-    updateDataStream();
-    controls.update();
+    // Update gyroid field for animation effects
+    updateGyroidField(gyroid);
+    
+    // Render the scene
     renderer.render(scene, camera);
 }
-animate();
 
-// Set up event listeners for controls
-function setupEventListeners() {
-    document.getElementById('update-btn').addEventListener('click', createGyroid);
-
-    document.getElementById('resolution-slider').addEventListener('input', (e) => {
-        resolution = parseInt(e.target.value);
-        document.getElementById('resolution-value').textContent = resolution;
-    });
-
-    document.getElementById('scale-slider').addEventListener('input', (e) => {
-        scale = parseFloat(e.target.value);
-        document.getElementById('scale-value').textContent = scale.toFixed(1);
-    });
-
-    document.getElementById('wireframe-toggle').addEventListener('change', (e) => {
-        wireframe = e.target.value === 'true';
-        if (gyroid) {
-            // Always recreate material to apply wireframe properly
-            createGyroid();
-        }
-    });
-
-    document.getElementById('animation-toggle').addEventListener('change', (e) => {
-        animationEnabled = e.target.value === 'true';
-    });
-
-    document.getElementById('period-slider').addEventListener('input', (e) => {
-        period = parseFloat(e.target.value);
-        document.getElementById('period-value').textContent = period.toFixed(1);
-    });
-
-    document.getElementById('thickness-slider').addEventListener('input', (e) => {
-        thickness = parseFloat(e.target.value);
-        document.getElementById('thickness-value').textContent = thickness.toFixed(2);
-        if (gyroid) {
-            gyroid.isolation = thickness;
-            updateGyroidField(gyroid);
-        }
-    });
-
-    document.getElementById('animation-speed-slider').addEventListener('input', (e) => {
-        animationSpeed = parseFloat(e.target.value);
-        document.getElementById('animation-speed-value').textContent = animationSpeed.toFixed(1);
-    });
-    
-    document.getElementById('color-picker').addEventListener('change', (e) => {
-        surfaceColor = e.target.value;
-        if (gyroid) {
-            // Need to recreate the material when changing color
-            createGyroid();
-        }
-    });
-    
-    document.getElementById('data-stream-toggle').addEventListener('change', (e) => {
-        dataStreamEnabled = e.target.value === 'true';
-        document.getElementById('data-stream').style.display = dataStreamEnabled ? 'block' : 'none';
-        
-        // Adjust controls height when data stream is toggled
-        if (dataStreamEnabled) {
-            document.getElementById('controls').style.maxHeight = 'calc(100vh - 270px)';
-        } else {
-            document.getElementById('controls').style.maxHeight = 'calc(100vh - 100px)';
-        }
-    });
-
-    // Dark mode toggle with improved transition
-    const darkModeToggle = document.getElementById('dark-mode-toggle');
-    let darkMode = false;
-    
-    darkModeToggle.addEventListener('click', () => {
-        darkMode = !darkMode;
-        if (darkMode) {
-            document.body.classList.add('dark-mode');
-            scene.background = new THREE.Color(0x121212);
-        } else {
-            document.body.classList.remove('dark-mode');
-            scene.background = new THREE.Color(0xffffff);
-        }
-    });
-
-    // Resize handler with throttling for better performance
-    let resizeTimeout;
-    window.addEventListener('resize', () => {
-        clearTimeout(resizeTimeout);
-        resizeTimeout = setTimeout(() => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        }, 100);
-    });
+// Handle window resize
+function onWindowResize() {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth / window.innerHeight);
 }
 
-// Initialize event listeners when the DOM is fully loaded
-document.addEventListener('DOMContentLoaded', setupEventListeners);
+// Setup UI event listeners
+function setupEventListeners() {
+    // Resolution slider
+    const resolutionSlider = document.getElementById('resolution');
+    const resolutionValue = document.getElementById('resolutionValue');
+    
+    if (resolutionSlider && resolutionValue) {
+        resolutionSlider.value = config.resolution;
+        resolutionValue.textContent = config.resolution;
+        
+        resolutionSlider.addEventListener('input', function() {
+            config.resolution = parseInt(this.value);
+            resolutionValue.textContent = config.resolution;
+            createGyroid();
+        });
+    }
+    
+    // Iso Level slider
+    const isoLevelSlider = document.getElementById('isoLevel');
+    const isoLevelValue = document.getElementById('isoLevelValue');
+    
+    if (isoLevelSlider && isoLevelValue) {
+        isoLevelSlider.value = config.isoLevel;
+        isoLevelValue.textContent = config.isoLevel.toFixed(2);
+        
+        isoLevelSlider.addEventListener('input', function() {
+            config.isoLevel = parseFloat(this.value);
+            isoLevelValue.textContent = config.isoLevel.toFixed(2);
+            
+            if (gyroid) {
+                gyroid.isolation = config.isoLevel;
+                gyroid.update();
+            }
+        });
+    }
+    
+    // Scale X slider
+    const scaleXSlider = document.getElementById('scaleX');
+    const scaleXValue = document.getElementById('scaleXValue');
+    
+    if (scaleXSlider && scaleXValue) {
+        scaleXSlider.value = config.scaleX;
+        scaleXValue.textContent = config.scaleX.toFixed(1);
+        
+        scaleXSlider.addEventListener('input', function() {
+            config.scaleX = parseFloat(this.value);
+            scaleXValue.textContent = config.scaleX.toFixed(1);
+            
+            if (gyroid) {
+                gyroid.scale.x = config.scaleX;
+            }
+        });
+    }
+    
+    // Scale Y slider
+    const scaleYSlider = document.getElementById('scaleY');
+    const scaleYValue = document.getElementById('scaleYValue');
+    
+    if (scaleYSlider && scaleYValue) {
+        scaleYSlider.value = config.scaleY;
+        scaleYValue.textContent = config.scaleY.toFixed(1);
+        
+        scaleYSlider.addEventListener('input', function() {
+            config.scaleY = parseFloat(this.value);
+            scaleYValue.textContent = config.scaleY.toFixed(1);
+            
+            if (gyroid) {
+                gyroid.scale.y = config.scaleY;
+            }
+        });
+    }
+    
+    // Scale Z slider
+    const scaleZSlider = document.getElementById('scaleZ');
+    const scaleZValue = document.getElementById('scaleZValue');
+    
+    if (scaleZSlider && scaleZValue) {
+        scaleZSlider.value = config.scaleZ;
+        scaleZValue.textContent = config.scaleZ.toFixed(1);
+        
+        scaleZSlider.addEventListener('input', function() {
+            config.scaleZ = parseFloat(this.value);
+            scaleZValue.textContent = config.scaleZ.toFixed(1);
+            
+            if (gyroid) {
+                gyroid.scale.z = config.scaleZ;
+            }
+        });
+    }
+    
+    // Color scheme selector
+    const colorSchemeSelect = document.getElementById('colorScheme');
+    
+    if (colorSchemeSelect) {
+        colorSchemeSelect.value = config.colorScheme;
+        
+        colorSchemeSelect.addEventListener('change', function() {
+            config.colorScheme = this.value;
+            createGyroid();
+        });
+    }
+    
+    // Rotation speed slider
+    const rotationSpeedSlider = document.getElementById('rotationSpeed');
+    const rotationSpeedValue = document.getElementById('rotationSpeedValue');
+    
+    if (rotationSpeedSlider && rotationSpeedValue) {
+        rotationSpeedSlider.value = config.rotationSpeed;
+        rotationSpeedValue.textContent = config.rotationSpeed.toFixed(1);
+        
+        rotationSpeedSlider.addEventListener('input', function() {
+            config.rotationSpeed = parseFloat(this.value);
+            rotationSpeedValue.textContent = config.rotationSpeed.toFixed(1);
+        });
+    }
+    
+    // Reset button
+    const resetButton = document.getElementById('resetButton');
+    
+    if (resetButton) {
+        resetButton.addEventListener('click', function() {
+            // Reset to default values
+            config = {
+                resolution: 32,
+                isoLevel: 0,
+                scaleX: 1.0,
+                scaleY: 1.0,
+                scaleZ: 1.0,
+                colorScheme: 'gradient',
+                rotationSpeed: 1.0
+            };
+            
+            // Update UI to reflect reset values
+            if (resolutionSlider && resolutionValue) {
+                resolutionSlider.value = config.resolution;
+                resolutionValue.textContent = config.resolution;
+            }
+            
+            if (isoLevelSlider && isoLevelValue) {
+                isoLevelSlider.value = config.isoLevel;
+                isoLevelValue.textContent = config.isoLevel.toFixed(2);
+            }
+            
+            if (scaleXSlider && scaleXValue) {
+                scaleXSlider.value = config.scaleX;
+                scaleXValue.textContent = config.scaleX.toFixed(1);
+            }
+            
+            if (scaleYSlider && scaleYValue) {
+                scaleYSlider.value = config.scaleY;
+                scaleYValue.textContent = config.scaleY.toFixed(1);
+            }
+            
+            if (scaleZSlider && scaleZValue) {
+                scaleZSlider.value = config.scaleZ;
+                scaleZValue.textContent = config.scaleZ.toFixed(1);
+            }
+            
+            if (colorSchemeSelect) {
+                colorSchemeSelect.value = config.colorScheme;
+            }
+            
+            if (rotationSpeedSlider && rotationSpeedValue) {
+                rotationSpeedSlider.value = config.rotationSpeed;
+                rotationSpeedValue.textContent = config.rotationSpeed.toFixed(1);
+            }
+            
+            // Recreate gyroid with reset values
+            createGyroid();
+        });
+    }
+}
+
+// Initialize the visualization once the DOM is loaded
+document.addEventListener('DOMContentLoaded', init);
