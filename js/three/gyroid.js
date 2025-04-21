@@ -459,70 +459,7 @@ function setupEventListeners() {
         }
     }
     
-    // Reset button
-    const resetButton = document.getElementById('resetButton');
-    
-    if (resetButton) {
-        resetButton.addEventListener('click', function() {
-            // Reset to default values
-            config = {
-                resolution: 32,
-                isoLevel: 0,
-                scaleX: 2.0,
-                scaleY: 0.6,
-                scaleZ: 1.0,
-                colorScheme: 'normals',
-                rotationSpeed: 1.0,
-                showGrid: true
-            };
-            
-            // Update UI to reflect reset values
-            if (resolutionSlider && resolutionValue) {
-                resolutionSlider.value = config.resolution;
-                resolutionValue.textContent = config.resolution;
-            }
-            
-            if (isoLevelSlider && isoLevelValue) {
-                isoLevelSlider.value = config.isoLevel;
-                isoLevelValue.textContent = config.isoLevel.toFixed(2);
-            }
-            
-            if (scaleXSlider && scaleXValue) {
-                scaleXSlider.value = config.scaleX;
-                scaleXValue.textContent = config.scaleX.toFixed(1);
-            }
-            
-            if (scaleYSlider && scaleYValue) {
-                scaleYSlider.value = config.scaleY;
-                scaleYValue.textContent = config.scaleY.toFixed(1);
-            }
-            
-            if (scaleZSlider && scaleZValue) {
-                scaleZSlider.value = config.scaleZ;
-                scaleZValue.textContent = config.scaleZ.toFixed(1);
-            }
-            
-            if (colorSchemeSelect) {
-                colorSchemeSelect.value = config.colorScheme;
-            }
-            
-            if (rotationSpeedSlider && rotationSpeedValue) {
-                rotationSpeedSlider.value = config.rotationSpeed;
-                rotationSpeedValue.textContent = config.rotationSpeed.toFixed(1);
-            }
-            
-            // Update grid visibility
-            if (gridHelper) {
-                gridHelper.visible = config.showGrid;
-            }
-            if (axisHelper) {
-                axisHelper.visible = config.showGrid;
-            }
-            
-            // Recreate gyroid with reset values
-            createGyroid();
-        });
-    }
+
 }
 
 // Initialize the visualization once the DOM is loaded
