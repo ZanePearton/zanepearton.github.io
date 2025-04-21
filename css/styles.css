@@ -1279,7 +1279,7 @@ header .title {
     display: flex; /* Use flexbox to arrange button and content */
     flex-direction: row; /* Ensure horizontal layout */
     transition: transform 0.3s cubic-bezier(0.42, 0, 0.58, 1);
-    gap: 10px; /* Add gap between button and content */
+    gap: 0; /* Remove gap between button and content */
 }
 
 /* Container for the actual controls content */
@@ -1288,7 +1288,7 @@ header .title {
     backdrop-filter: var(--apple-blur);
     -webkit-backdrop-filter: var(--apple-blur);
     padding: 20px;
-    border-radius: 18px; /* Fully rounded */
+    border-radius: 0 18px 18px 0; /* Round only right corners */
     width: 280px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
     max-height: calc(100vh - 270px);
@@ -1298,10 +1298,10 @@ header .title {
 
 /* Minimize/Maximize button - positioned on the left side */
 #minimizeControls {
-    width: 10px !important;
-    min-width: 10px !important;
-    max-width: 10px !important;
-    flex: 0 0 40px !important; 
+    width: 40px !important;
+    min-width: 40px !important;
+    max-width: 40px !important;
+    flex: 0 0 40px !important;
     background: linear-gradient(to bottom, var(--apple-orange), var(--apple-purple));
     border: none;
     color: white;
@@ -1310,7 +1310,7 @@ header .title {
     justify-content: center;
     cursor: pointer;
     font-size: 16px;
-    border-radius: 18px; /* Fully rounded */
+    border-radius: 18px 0 0 18px; /* Round only left corners */
     align-self: stretch;
     order: 1; /* Place first in the flex layout */
 }
@@ -1323,16 +1323,16 @@ header .title {
 #controls.minimized {
     transform: translateX(calc(100% - 40px));
 }
+
 /* Adjust the control title for the button */
 .control-title {
-    margin-left: 30px;
+    margin-left: 0; /* Remove left margin */
 }
 
 /* Dark mode adjustments */
 .dark-mode #minimizeControls {
     background: linear-gradient(to right, var(--apple-orange), var(--apple-purple));
 }
-
 
 
 
