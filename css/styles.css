@@ -1277,6 +1277,7 @@ header .title {
     right: 20px;
     z-index: 100;
     display: flex; /* Use flexbox to arrange button and content */
+    flex-direction: row; /* Ensure horizontal layout */
     transition: transform 0.3s cubic-bezier(0.42, 0, 0.58, 1);
 }
 
@@ -1286,17 +1287,18 @@ header .title {
     backdrop-filter: var(--apple-blur);
     -webkit-backdrop-filter: var(--apple-blur);
     padding: 20px;
-    border-radius: 18px 18px 18px 18px; /* Rounded on all corners except left side */
+    border-radius: 0 18px 18px 0; /* Right side rounded */
     width: 280px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
     max-height: calc(100vh - 270px);
     overflow-y: auto;
+    order: 2; /* Place second in the flex layout */
 }
 
 /* Minimize/Maximize button - positioned on the left side */
 #minimizeControls {
-    width: 10px; /* Match the width in your image */
-    background: #ffffff; /* Red color as shown in your image */
+    width: 40px; /* Wider to match your gradient panel */
+    background: linear-gradient(to bottom, var(--apple-orange), var(--apple-purple)); /* Gradient */
     border: none;
     color: white;
     display: flex;
@@ -1304,19 +1306,19 @@ header .title {
     justify-content: center;
     cursor: pointer;
     font-size: 16px;
-    border-radius: 18px 18px 18px 18px; /* Rounded on all corners except left side */
+    border-radius: 18px 0 0 18px; /* Left side rounded */
     align-self: stretch; /* Make it stretch to full height of the parent */
+    order: 1; /* Place first in the flex layout */
 }
 
 #minimizeControls:hover {
-    background: #efefef; /* Darker red on hover */
+    opacity: 0.9; /* Subtle hover effect for gradient */
 }
 
 /* Minimized state */
 #controls.minimized {
     transform: translateX(calc(100% - 40px)); /* Move everything except the button width */
 }
-
 /* Adjust the control title for the button */
 .control-title {
     margin-left: 30px;
