@@ -15,7 +15,7 @@ let config = {
     scaleX: 1.0,
     scaleY: 1.0,
     scaleZ: 1.0,
-    colorScheme: 'gradient',
+    colorScheme: 'normals',
     rotationSpeed: 1.0
 };
 
