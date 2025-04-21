@@ -1135,6 +1135,54 @@ footer {
     color: var(--apple-orange) !important;
 }
 
+/* Dark Mode Controls Panel Fixes */
+.dark-mode .controls-inner {
+    background-color: rgba(30, 30, 30, 0.8) !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3) !important;
+}
+
+.dark-mode #controls .control-title {
+    color: #f0f0f0 !important;
+}
+
+.dark-mode #controls label {
+    color: #aaaaaa !important;
+}
+
+.dark-mode #controls .value-display {
+    color: #f0f0f0 !important;
+}
+
+.dark-mode #controls .control-group {
+    border-bottom-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.dark-mode #controls input[type="range"] {
+    background: #444 !important;
+}
+
+.dark-mode #controls select {
+    background-color: #2d2d2d !important;
+    color: #f0f0f0 !important;
+    border-color: #444 !important;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23aaaaaa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e") !important;
+}
+
+.dark-mode #controls button:not(#minimizeControls) {
+    background: linear-gradient(to right, var(--apple-orange), var(--apple-purple)) !important;
+    color: white !important;
+}
+
+/* Fix for info panel in dark mode */
+.dark-mode #info {
+    background-color: rgba(30, 30, 30, 0.8) !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3) !important;
+}
+
+.dark-mode #info p {
+    color: #aaaaaa !important;
+}
+
 /* Menu animations */
 #mobileMenuBtn.rotated i {
     transform: rotate(90deg);
