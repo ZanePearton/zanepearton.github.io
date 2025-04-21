@@ -1275,35 +1275,28 @@ header .title {
     position: fixed;
     top: 70px;
     right: 20px;
+    z-index: 100;
+    display: flex; /* Use flexbox to arrange button and content */
+    transition: transform 0.3s cubic-bezier(0.42, 0, 0.58, 1);
+}
+
+/* Container for the actual controls content */
+.controls-inner {
     background-color: rgba(255, 255, 255, 0.8);
     backdrop-filter: var(--apple-blur);
     -webkit-backdrop-filter: var(--apple-blur);
     padding: 20px;
-    border-radius: 18px;
-    z-index: 100;
+    border-radius: 0 18px 18px 0; /* Rounded on all corners except left side */
     width: 280px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-    transition: transform 0.3s cubic-bezier(0.42, 0, 0.58, 1);
     max-height: calc(100vh - 270px);
     overflow-y: auto;
-    overflow-x: visible; /* Critical for the button to be visible */
 }
 
-/* Minimized state */
-#controls.minimized {
-    transform: translateX(calc(100% - 40px));
-}
-
-/* Minimize/Maximize button */
+/* Minimize/Maximize button - positioned on the left side */
 #minimizeControls {
-    position: absolute;
-    top: 50%; /* Center vertically */
-    left: -20px; /* Position outside the panel */
-    transform: translateY(-50%);
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: linear-gradient(to right, var(--apple-orange), var(--apple-purple));
+    width: 40px; /* Match the width in your image */
+    background: #e74c3c; /* Red color as shown in your image */
     border: none;
     color: white;
     display: flex;
@@ -1311,12 +1304,17 @@ header .title {
     justify-content: center;
     cursor: pointer;
     font-size: 16px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-    z-index: 101; /* Make sure it's above everything */
+    border-radius: 18px 0 0 18px; /* Rounded only on left side */
+    align-self: stretch; /* Make it stretch to full height of the parent */
 }
 
 #minimizeControls:hover {
-    transform: translateY(-50%) scale(1.1);
+    background: #c0392b; /* Darker red on hover */
+}
+
+/* Minimized state */
+#controls.minimized {
+    transform: translateX(calc(100% - 40px)); /* Move everything except the button width */
 }
 
 /* Adjust the control title for the button */
