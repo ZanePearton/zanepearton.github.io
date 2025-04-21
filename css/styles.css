@@ -1307,22 +1307,27 @@ header .title {
 
 /* Minimize/Maximize button - positioned on the left side */
 #minimizeControls {
-    border-radius: 18px 0 0 18px !important; /* Left corners only */
     width: 40px !important;
     min-width: 40px !important;
     max-width: 40px !important;
     flex: 0 0 40px !important;
     margin: 0 !important;
     padding: 0 !important;
-    background: linear-gradient(to bottom, var(--apple-orange), var(--apple-purple));
-    border: none;
+    /* Make sure the gradient extends to the full width */
+    background: linear-gradient(to bottom, var(--apple-orange), var(--apple-purple)) !important;
+    /* Add this to ensure no white edges */
+    background-clip: padding-box !important;
+    background-origin: padding-box !important;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
     color: white;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     font-size: 16px;
-    border-radius: 18px 0 0 18px; /* Round only left corners */
+    border-radius: 18px 0 0 18px !important; /* Round only left corners */
     align-self: stretch;
     order: 1;
 }
