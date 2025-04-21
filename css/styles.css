@@ -1295,8 +1295,8 @@ header .title {
 
 /* Minimize/Maximize button - positioned on the left side */
 #minimizeControls {
-    width: 40px; /* Match the width in your image */
-    background: #e74c3c; /* Red color as shown in your image */
+    width: 10px; /* Match the width in your image */
+    background: #ffffff; /* Red color as shown in your image */
     border: none;
     color: white;
     display: flex;
@@ -1309,7 +1309,7 @@ header .title {
 }
 
 #minimizeControls:hover {
-    background: #c0392b; /* Darker red on hover */
+    background: #efefef; /* Darker red on hover */
 }
 
 /* Minimized state */
