@@ -1283,26 +1283,25 @@ header .title {
     z-index: 100;
     width: 280px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-    transition: var(--transition);
+    transition: transform 0.3s cubic-bezier(0.42, 0, 0.58, 1);
     max-height: calc(100vh - 270px);
     overflow-y: auto;
-    overflow-x: visible; /* Add this to ensure the button is visible */
+    overflow-x: visible; /* Critical for the button to be visible */
 }
 
+/* Minimized state */
 #controls.minimized {
     transform: translateX(calc(100% - 40px));
-    transition: transform 0.3s cubic-bezier(0.42, 0, 0.58, 1);
 }
-
 
 /* Minimize/Maximize button */
 #minimizeControls {
     position: absolute;
-    top: 50%;
+    top: 50%; /* Center vertically */
     left: -20px; /* Position outside the panel */
     transform: translateY(-50%);
-    width: 30px;
-    height: 30px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
     background: linear-gradient(to right, var(--apple-orange), var(--apple-purple));
     border: none;
@@ -1311,9 +1310,9 @@ header .title {
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 16px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-    z-index: 2; /* Ensure it appears above the panel */
+    z-index: 101; /* Make sure it's above everything */
 }
 
 #minimizeControls:hover {
