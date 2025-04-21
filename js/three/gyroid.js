@@ -12,8 +12,8 @@ let clock = new THREE.Clock();
 let config = {
     resolution: 32,
     isoLevel: 0,
-    scaleX: 1.0,
-    scaleY: 1.0,
+    scaleX: 2.0,
+    scaleY: 0.6,
     scaleZ: 1.0,
     colorScheme: 'normals',
     rotationSpeed: 1.0
@@ -147,7 +147,7 @@ function createMaterial() {
             
         case 'wireframe':
             newMaterial = new THREE.MeshPhongMaterial({
-                color: 0xCCCCCC,
+                color: 0x000000,
                 wireframe: true,
                 side: THREE.DoubleSide
             });
@@ -422,8 +422,8 @@ function setupEventListeners() {
             config = {
                 resolution: 32,
                 isoLevel: 0,
-                scaleX: 1.0,
-                scaleY: 1.0,
+                scaleX: 2.0,
+                scaleY: 0.6,
                 scaleZ: 1.0,
                 colorScheme: 'normals',
                 rotationSpeed: 1.0
