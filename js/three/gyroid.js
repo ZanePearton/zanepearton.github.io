@@ -462,5 +462,6 @@ function setupEventListeners() {
 
 }
 
+
 // Initialize the visualization once the DOM is loaded
 document.addEventListener('DOMContentLoaded', init);

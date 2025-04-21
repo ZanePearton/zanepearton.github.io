@@ -1288,6 +1288,46 @@ header .title {
     overflow-y: auto;
 }
 
+
+
+
+/* Minimize/Maximize button */
+#minimizeControls {
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: linear-gradient(to right, var(--apple-orange), var(--apple-purple));
+    border: none;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 14px;
+    transition: var(--transition);
+}
+
+#minimizeControls:hover {
+    transform: scale(1.1);
+}
+
+/* Adjust the control title for the button */
+.control-title {
+    margin-left: 30px;
+}
+
+/* Dark mode adjustments */
+.dark-mode #minimizeControls {
+    background: linear-gradient(to right, var(--apple-orange), var(--apple-purple));
+}
+
+
+
+
+
 .control-title {
     font-size: 18px;
     font-weight: 600;
@@ -1414,184 +1454,6 @@ header .title {
     line-height: 1.5;
     color: var(--apple-dark-gray);
     margin-bottom: 10px;
-}
-
-/* Data Stream Visualization */
-#data-stream {
-    position: fixed;
-    bottom: 20px;
-    left: 20px;
-    right: 20px;
-    background-color: rgba(255, 255, 255, 0.8);
-    backdrop-filter: var(--apple-blur);
-    -webkit-backdrop-filter: var(--apple-blur);
-    padding: 20px;
-    border-radius: 18px;
-    z-index: 100;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-    height: 190px;
-    display: flex;
-    flex-direction: column;
-}
-
-#data-stream-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 15px;
-}
-
-#data-stream h3 {
-    font-size: 16px;
-    font-weight: 600;
-    margin: 0;
-    background: linear-gradient(to right, var(--apple-orange), var(--apple-purple));
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-}
-
-#data-metrics {
-    display: flex;
-    justify-content: space-between;
-    gap: 20px;
-}
-
-.data-metric {
-    text-align: center;
-    flex: 1;
-}
-
-.metric-label {
-    display: block;
-    font-size: 12px;
-    color: var(--apple-dark-gray);
-    margin-bottom: 5px;
-}
-
-.metric-value {
-    display: block;
-    font-size: 18px;
-    font-weight: 600;
-    color: var(--apple-text);
-}
-
-#data-viz-container {
-    position: relative;
-    height: 80px;
-}
-
-#data-viz {
-    height: 60px;
-    width: 100%;
-    background-color: var(--apple-light-gray);
-    border-radius: 10px;
-    overflow: hidden;
-    position: relative;
-}
-
-.data-bar {
-    position: absolute;
-    bottom: 0;
-    width: 4px;
-    background: linear-gradient(to top, var(--apple-orange), var(--apple-purple));
-    border-radius: 2px 2px 0 0;
-    transition: height 0.3s ease;
-}
-
-.data-bar.active {
-    background: linear-gradient(to top, var(--apple-orange), var(--apple-purple));
-    box-shadow: 0 0 8px rgba(255, 149, 0, 0.4);
-}
-
-/* Time marker lines in data viz */
-.time-marker {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    width: 1px;
-    background-color: rgba(0, 0, 0, 0.1);
-}
-
-/* Labels under the data visualization */
-#data-labels {
-    display: flex;
-    justify-content: space-between;
-    margin-top: 5px;
-}
-
-.data-label {
-    font-size: 12px;
-    color: var(--apple-dark-gray);
-}
-
-/* Dark mode toggle */
-#dark-mode-toggle {
-    position: fixed;
-    top: 10px;
-    right: 20px;
-    width: 40px;
-    height: 28px;
-    border-radius: 14px;
-    background-color: var(--apple-light-gray);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    padding: 0 4px;
-    transition: var(--transition);
-    z-index: 1000;
-}
-
-#dark-mode-knob {
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    background: linear-gradient(to right, var(--apple-orange), var(--apple-purple));
-    transition: var(--transition);
-}
-
-/* Update dark mode for visualization components */
-.dark-mode #controls,
-.dark-mode #info,
-.dark-mode #data-stream {
-    background-color: rgba(30, 30, 30, 0.8) !important;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3) !important;
-}
-
-.dark-mode #controls select,
-.dark-mode #controls input[type="range"] {
-    background-color: #2d2d2d !important;
-    border-color: #444 !important;
-}
-
-.dark-mode #controls label,
-.dark-mode #info p,
-.dark-mode .metric-label,
-.dark-mode .data-label {
-    color: #aaaaaa !important;
-}
-
-.dark-mode .control-title,
-.dark-mode .value-display,
-.dark-mode .metric-value {
-    color: #f0f0f0 !important;
-}
-
-.dark-mode .control-group {
-    border-bottom-color: rgba(255, 255, 255, 0.1) !important;
-}
-
-.dark-mode #data-viz {
-    background-color: #2d2d2d !important;
-}
-
-.dark-mode .time-marker {
-    background-color: rgba(255, 255, 255, 0.1) !important;
-}
-
-.dark-mode #dark-mode-toggle {
-    background-color: #444 !important;
-    justify-content: flex-end;
 }
 
 /* Mobile responsiveness for visualization */
