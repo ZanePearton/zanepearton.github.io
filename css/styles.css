@@ -1276,10 +1276,13 @@ header .title {
     top: 70px;
     right: 20px;
     z-index: 100;
-    display: flex; /* Use flexbox to arrange button and content */
-    flex-direction: row; /* Ensure horizontal layout */
+    display: flex;
+    flex-direction: row;
     transition: transform 0.3s cubic-bezier(0.42, 0, 0.58, 1);
-    gap: 0; /* Remove gap between button and content */
+    gap: 0 !important;
+    column-gap: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
 }
 
 /* Container for the actual controls content */
@@ -1293,7 +1296,9 @@ header .title {
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
     max-height: calc(100vh - 270px);
     overflow-y: auto;
-    order: 2; /* Place second in the flex layout */
+    order: 2;
+    margin: 0 !important;
+    padding-left: 20px !important;
 }
 
 /* Minimize/Maximize button - positioned on the left side */
@@ -1312,7 +1317,9 @@ header .title {
     font-size: 16px;
     border-radius: 18px 0 0 18px; /* Round only left corners */
     align-self: stretch;
-    order: 1; /* Place first in the flex layout */
+    order: 1;
+    margin: 0 !important;
+    padding: 0 !important;
 }
 
 #minimizeControls:hover {
