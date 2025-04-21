@@ -34,9 +34,14 @@ function init() {
         document.body.appendChild(renderer.domElement);
     }
 
-    // Setup scene
+    // Check if dark mode is active
+    const isDarkMode = document.body.classList.contains('dark-mode');
+    
+    // Setup scene with appropriate background color
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xffffff);
+    scene.background = new THREE.Color(isDarkMode ? 0x121212 : 0xffffff);
+    
+    console.log("Three.js scene initialized with", isDarkMode ? "dark" : "light", "background");
 
     // Setup camera
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -67,10 +72,44 @@ function init() {
     // Handle window resize
     window.addEventListener('resize', onWindowResize);
     
+    // Listen for dark mode changes
+    setupDarkModeListener();
+    
     // Start animation loop
     animate();
     
     console.log("Gyroid visualization initialized");
+}
+
+// Listen for dark mode changes
+function setupDarkModeListener() {
+    // Watch for clicks on the dark mode toggle button
+    const darkModeToggle = document.getElementById('darkModeToggle');
+    if (darkModeToggle) {
+        console.log("Dark mode toggle button found, adding listener");
+        darkModeToggle.addEventListener('click', updateSceneBackground);
+    } else {
+        console.log("Dark mode toggle button not found, using MutationObserver");
+        // If we can't find the button directly, watch for class changes on body
+        const observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.attributeName === 'class') {
+                    updateSceneBackground();
+                }
+            });
+        });
+        
+        observer.observe(document.body, { attributes: true });
+    }
+}
+
+// Update scene background based on dark mode state
+function updateSceneBackground() {
+    if (!scene) return;
+    
+    const isDarkMode = document.body.classList.contains('dark-mode');
+    scene.background = new THREE.Color(isDarkMode ? 0x121212 : 0xffffff);
+    console.log("Updated Three.js scene background to", isDarkMode ? "dark" : "light", "mode");
 }
 
 // Create material based on color scheme selection
@@ -255,7 +294,7 @@ function animate() {
 function onWindowResize() {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth / window.innerHeight);
+    renderer.setSize(window.innerWidth, window.innerHeight);
 }
 
 // Setup UI event listeners
