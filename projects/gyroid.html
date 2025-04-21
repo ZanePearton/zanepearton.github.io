@@ -49,50 +49,51 @@
             <div id="canvas-container"></div>
 
             <!-- Controls Panel -->
+            <!-- Controls Panel -->
             <div id="controls">
+                <div class="control-title">Visualization Controls</div>
+                <div class="control-content">
+                    <div class="control-group">
+                        <label for="resolution">Resolution <span class="value-display"
+                                id="resolutionValue">32</span></label>
+                        <input type="range" id="resolution" min="8" max="64" value="32" step="8">
+
+                        <label for="isoLevel">Iso Level <span class="value-display" id="isoLevelValue">0</span></label>
+                        <input type="range" id="isoLevel" min="-1" max="1" value="0" step="0.05">
+                    </div>
+
+                    <div class="control-group">
+                        <label for="scaleX">Scale X <span class="value-display" id="scaleXValue">1.0</span></label>
+                        <input type="range" id="scaleX" min="0.1" max="2" value="1.0" step="0.1">
+
+                        <label for="scaleY">Scale Y <span class="value-display" id="scaleYValue">1.0</span></label>
+                        <input type="range" id="scaleY" min="0.1" max="2" value="1.0" step="0.1">
+
+                        <label for="scaleZ">Scale Z <span class="value-display" id="scaleZValue">1.0</span></label>
+                        <input type="range" id="scaleZ" min="0.1" max="2" value="1.0" step="0.1">
+                    </div>
+
+                    <div class="control-group">
+                        <label for="colorScheme">Color Scheme</label>
+                        <select id="colorScheme">
+                            <option value="normals">Normal Map</option>
+                            <option value="wireframe">Wireframe</option>
+                            <option value="gradient">Orange-Purple Gradient</option>
+                            <option value="rainbow">Rainbow</option>
+                        </select>
+                    </div>
+
+                    <div class="control-group">
+                        <label for="rotationSpeed">Rotation Speed <span class="value-display"
+                                id="rotationSpeedValue">1.0</span></label>
+                        <input type="range" id="rotationSpeed" min="0" max="2" value="1.0" step="0.1">
+                        <button id="gridToggle">Toggle Grid</button>
+                    </div>
+                </div>
+                <!-- Minimize button on the side -->
                 <button id="minimizeControls" title="Minimize/Maximize Panel">
                     <i class="fas fa-chevron-right"></i>
                 </button>
-                <div class="control-title">Visualization Controls</div>
-
-                <div class="control-group">
-                    <label for="resolution">Resolution <span class="value-display"
-                            id="resolutionValue">32</span></label>
-                    <input type="range" id="resolution" min="8" max="64" value="32" step="8">
-
-                    <label for="isoLevel">Iso Level <span class="value-display" id="isoLevelValue">0</span></label>
-                    <input type="range" id="isoLevel" min="-1" max="1" value="0" step="0.05">
-                </div>
-
-                <div class="control-group">
-                    <label for="scaleX">Scale X <span class="value-display" id="scaleXValue">1.0</span></label>
-                    <input type="range" id="scaleX" min="0.1" max="2" value="1.0" step="0.1">
-
-                    <label for="scaleY">Scale Y <span class="value-display" id="scaleYValue">1.0</span></label>
-                    <input type="range" id="scaleY" min="0.1" max="2" value="1.0" step="0.1">
-
-                    <label for="scaleZ">Scale Z <span class="value-display" id="scaleZValue">1.0</span></label>
-                    <input type="range" id="scaleZ" min="0.1" max="2" value="1.0" step="0.1">
-                </div>
-
-                <div class="control-group">
-                    <label for="colorScheme">Color Scheme</label>
-                    <select id="colorScheme">
-                        <option value="normals">Normal Map</option>
-                        <option value="wireframe">Wireframe</option>
-                        <option value="gradient">Orange-Purple Gradient</option>
-                        <option value="rainbow">Rainbow</option>
-                    </select>
-                </div>
-
-                <div class="control-group">
-                    <label for="rotationSpeed">Rotation Speed <span class="value-display"
-                            id="rotationSpeedValue">1.0</span></label>
-                    <input type="range" id="rotationSpeed" min="0" max="2" value="1.0" step="0.1">
-
-
-                    <button id="gridToggle">Toggle Grid</button>
-                </div>
             </div>
         </div>
     </section>
