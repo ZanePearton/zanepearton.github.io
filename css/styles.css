@@ -1624,25 +1624,46 @@ header .title {
 
 
 .category-section {
-    margin-bottom: 4rem;
+    margin-bottom: 60px;
 }
 
 .category-title {
-    font-size: 1.8rem;
-    margin-bottom: 1.5rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 2px solid #3498db;
-    color: #2c3e50;
+    font-size: 28px;
+    line-height: 1.14286;
+    letter-spacing: .007em;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--apple-mid-gray);
+    color: var(--apple-text);
+    background: linear-gradient(to right, var(--apple-orange), var(--apple-purple));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    display: inline-block;
 }
 
 .projects-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-    gap: 2rem;
-    margin-bottom: 2rem;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 40px;
+    margin-bottom: 40px;
 }
 
 @media (max-width: 768px) {
     .projects-grid {
         grid-template-columns: 1fr;
     }
+    
+    .category-title {
+        font-size: 24px;
+    }
+}
+
+/* Dark mode support for categories */
+.dark-mode .category-title {
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+.dark-mode .category-section {
+    border-bottom-color: rgba(255, 255, 255, 0.05);
+}
