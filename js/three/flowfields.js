@@ -450,13 +450,15 @@ function init() {
     // Setup renderer
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.setSize(window.innerWidth, window.innerHeight);
     
     const container = document.getElementById('canvas-container');
     if (container) {
         container.appendChild(renderer.domElement);
+        renderer.setSize(container.clientWidth, container.clientHeight);
     } else {
+        console.error("Canvas container not found, appending to body");
         document.body.appendChild(renderer.domElement);
+        renderer.setSize(window.innerWidth, window.innerHeight);
     }
     
     // Setup scene with background color
