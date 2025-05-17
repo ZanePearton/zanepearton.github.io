@@ -18,7 +18,7 @@ let config = {
     maxSpeed: 0.5,          // Maximum speed of boids
     perceptionRadius: 5,    // How far boids can see neighbors
     boundaryRadius: 15,     // Size of the boundary sphere
-    colorScheme: 'rainbow',
+    colorScheme: 'gradient',
     rotationSpeed: 1.0,
     showGrid: true,
     paused: false,          // Whether the simulation is paused
