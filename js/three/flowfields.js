@@ -248,9 +248,12 @@ class FlowParticle {
         if (speed > maxSpeed) {
             this.velocity.multiplyScalar(maxSpeed / speed);
         }
-        
+
         // Update position: p = p + v*t
         this.mesh.position.add(this.velocity.clone().multiplyScalar(delta * config.timeScale));
+
+        // Update trails
+        this.updateTrail();
         
         // Check boundary
         this.checkBoundary();
@@ -948,6 +951,8 @@ function createUI() {
 // Initialize when document is ready
 document.addEventListener('DOMContentLoaded', function() {
     init();
+    // Start the animation loop
+    animate();
 });
 
 // Call init if document is already loaded
