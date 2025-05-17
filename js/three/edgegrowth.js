@@ -3,709 +3,1057 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { MarchingCubes } from 'three/addons/objects/MarchingCubes.js';
 
+// Initialize variables
+let renderer, scene, camera, controls;
+let gyroid, material, gradientTexture;
+let clock = new THREE.Clock();
+let gridHelper, axisHelper;
 
-// Debug helper
-const debug = {
-    log: function (msg) {
-        console.log(msg);
-        const debugEl = document.getElementById('debug');
-        if (debugEl) {
-            debugEl.innerHTML += msg + '<br>';
-            debugEl.scrollTop = debugEl.scrollHeight;
-        }
-    },
-    clear: function () {
-        const debugEl = document.getElementById('debug');
-        if (debugEl) { debugEl.innerHTML = ''; }
+    
+// Enhanced Spatial Grid for collision detection
+class SpatialGrid {
+  constructor(cellSize = 0.5) {
+    this.cellSize = cellSize;
+    this.cells = new Map();
+    this.reset();
+  }
+
+  reset() {
+    this.cells.clear();
+  }
+
+  // Get cell key for a position
+  getKey(pos) {
+    const x = Math.floor(pos.x / this.cellSize);
+    const y = Math.floor(pos.y / this.cellSize);
+    const z = Math.floor(pos.z / this.cellSize);
+    return `${x},${y},${z}`;
+  }
+
+  // Add item to grid
+  insert(item, pos) {
+    const key = this.getKey(pos);
+    if (!this.cells.has(key)) {
+      this.cells.set(key, []);
     }
-};
+    this.cells.get(key).push(item);
+  }
 
-debug.log("Starting differential mesh script...");
+  // Get nearby items
+  query(pos, radius = 1) {
+    const results = [];
+    const cellRadius = Math.ceil(radius / this.cellSize);
+    const baseX = Math.floor(pos.x / this.cellSize);
+    const baseY = Math.floor(pos.y / this.cellSize);
+    const baseZ = Math.floor(pos.z / this.cellSize);
 
-try {
-    // Scene setup
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x111111);
-    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    // Check neighboring cells
+    for (let x = baseX - cellRadius; x <= baseX + cellRadius; x++) {
+      for (let y = baseY - cellRadius; y <= baseY + cellRadius; y++) {
+        for (let z = baseZ - cellRadius; z <= baseZ + cellRadius; z++) {
+          const key = `${x},${y},${z}`;
+          if (this.cells.has(key)) {
+            results.push(...this.cells.get(key));
+          }
+        }
+      }
+    }
+    return results;
+  }
+}
 
-    renderer.setSize(window.innerWidth, window.innerHeight);
+// Mesh manager
+class MeshManager {
+  constructor(scene) {
+    this.scene = scene;
+    this.vertices = [];
+    this.faces = [];
+    this.edges = new Map();
+    this.grid = new SpatialGrid(0.5);
+    this.collisionCount = 0;
+    this.geometry = null;
+    this.mesh = null;
+    this.material = null;
+    this.wireframe = false;
+    this.collisionThreshold = 0.25;
+    this.lastTime = 0;
+    this.infoElement = document.getElementById('info');
+  }
+
+  // Create initial grid mesh
+  createGridMesh(gridSize = 8, size = 2) {
+    this.vertices = [];
+    this.faces = [];
+    this.edges = new Map();
+    this.collisionCount = 0;
+
+    const halfSize = size / 2;
+    const cellSize = size / gridSize;
+    
+    // Create grid vertices
+    for (let i = 0; i <= gridSize; i++) {
+      for (let j = 0; j <= gridSize; j++) {
+        const x = -halfSize + i * cellSize;
+        const y = -halfSize + j * cellSize;
+        const z = 0;
+        
+        const isBoundary = i === 0 || j === 0 || i === gridSize || j === gridSize;
+        
+        this.vertices.push({
+          pos: new THREE.Vector3(x, y, z),
+          vel: new THREE.Vector3(),
+          age: 0,
+          growthDir: new THREE.Vector3(Math.random() * 2 - 1, Math.random() * 2 - 1, Math.random() * 2 - 1).normalize(),
+          isBoundary,
+          lastCollision: 0
+        });
+      }
+    }
+    
+    // Create faces
+    for (let i = 0; i < gridSize; i++) {
+      for (let j = 0; j < gridSize; j++) {
+        const idx = i * (gridSize + 1) + j;
+        const idx1 = idx + 1;
+        const idx2 = idx + (gridSize + 1);
+        const idx3 = idx2 + 1;
+        
+        this.faces.push([idx, idx1, idx2]);
+        this.faces.push([idx1, idx3, idx2]);
+      }
+    }
+    
+    this.buildEdgeMap();
+    this.updateSpatialGrid();
+    this.updateInfoDisplay();
+  }
+
+  // Build edge map from faces
+  buildEdgeMap() {
+    this.edges.clear();
+    
+    for (let f = 0; f < this.faces.length; f++) {
+      let tri = this.faces[f];
+      for (let i = 0; i < 3; i++) {
+        let a = tri[i];
+        let b = tri[(i + 1) % 3];
+        let key = a < b ? `${a}_${b}` : `${b}_${a}`;
+        
+        if (!this.edges.has(key)) {
+          let dist = this.vertices[a].pos.distanceTo(this.vertices[b].pos);
+          const isBoundary = this.vertices[a].isBoundary || this.vertices[b].isBoundary;
+          
+          this.edges.set(key, { 
+            v1: a, 
+            v2: b, 
+            key, 
+            restLength: dist, 
+            faces: [f],
+            isBoundary,
+            age: 0,
+            growthDir: new THREE.Vector3(Math.random() * 2 - 1, Math.random() * 2 - 1, Math.random() * 2 - 1).normalize(),
+            lastCollision: 0
+          });
+        } else {
+          this.edges.get(key).faces.push(f);
+          this.edges.get(key).isBoundary = false;
+        }
+      }
+    }
+  }
+
+  // Find boundary edges
+  findBoundaryEdges() {
+    return Array.from(this.edges.values()).filter(edge => edge.faces.length === 1);
+  }
+
+  // Update spatial grid for fast collision detection
+  updateSpatialGrid() {
+    this.grid.reset();
+    
+    // Add edges to grid
+    for (const [key, edge] of this.edges) {
+      const v1 = this.vertices[edge.v1].pos;
+      const v2 = this.vertices[edge.v2].pos;
+      const midpoint = new THREE.Vector3().addVectors(v1, v2).multiplyScalar(0.5);
+      this.grid.insert({ type: 'edge', key }, midpoint);
+    }
+    
+    // Add faces to grid
+    for (let i = 0; i < this.faces.length; i++) {
+      const face = this.faces[i];
+      const center = this.calculateFaceCenter(face);
+      this.grid.insert({ type: 'face', index: i }, center);
+    }
+  }
+
+  // Calculate face center
+  calculateFaceCenter(faceIndices) {
+    const v1 = this.vertices[faceIndices[0]].pos;
+    const v2 = this.vertices[faceIndices[1]].pos;
+    const v3 = this.vertices[faceIndices[2]].pos;
+    
+    return new THREE.Vector3(
+      (v1.x + v2.x + v3.x) / 3,
+      (v1.y + v2.y + v3.y) / 3,
+      (v1.z + v2.z + v3.z) / 3
+    );
+  }
+
+  // Update info display
+  updateInfoDisplay() {
+    if (this.infoElement) {
+      this.infoElement.textContent = `Vertices: ${this.vertices.length} | Faces: ${this.faces.length} | Collisions: ${this.collisionCount}`;
+    }
+  }
+
+  // Create or update mesh
+  rebuildGeometry() {
+    if (this.mesh) {
+      this.scene.remove(this.mesh);
+      if (this.geometry) this.geometry.dispose();
+      if (this.material) this.material.dispose();
+    }
+    
+    // Create new geometry
+    this.geometry = new THREE.BufferGeometry();
+    
+    // Add positions
+    const positions = new Float32Array(this.vertices.length * 3);
+    for (let i = 0; i < this.vertices.length; i++) {
+      positions[i * 3] = this.vertices[i].pos.x;
+      positions[i * 3 + 1] = this.vertices[i].pos.y;
+      positions[i * 3 + 2] = this.vertices[i].pos.z;
+    }
+    
+    // Add indices
+    const indices = [];
+    for (const face of this.faces) {
+      indices.push(face[0], face[1], face[2]);
+    }
+    
+    this.geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    this.geometry.setIndex(indices);
+    this.geometry.computeVertexNormals();
+    
+    // Add colors based on height
+    const colors = new Float32Array(this.vertices.length * 3);
+    
+    // Find height range
+    let minZ = Infinity;
+    let maxZ = -Infinity;
+    
+    for (let i = 0; i < this.vertices.length; i++) {
+      minZ = Math.min(minZ, this.vertices[i].pos.z);
+      maxZ = Math.max(maxZ, this.vertices[i].pos.z);
+    }
+    
+    // Ensure we have some range
+    if (maxZ - minZ < 0.1) maxZ = minZ + 1;
+    
+    // Color vertices
+    for (let i = 0; i < this.vertices.length; i++) {
+      const heightValue = (this.vertices[i].pos.z - minZ) / (maxZ - minZ);
+      const isBoundary = this.vertices[i].isBoundary;
+      
+      let r, g, b;
+      
+      if (isBoundary) {
+        // Boundary vertices: red-yellow gradient
+        r = 1.0;
+        g = heightValue * 0.8;
+        b = 0.0;
+      } else {
+        // Interior vertices: blue-purple-pink gradient
+        if (heightValue < 0.33) {
+          r = heightValue * 3;
+          g = 0.0;
+          b = 1.0;
+        } else if (heightValue < 0.66) {
+          r = 1.0;
+          g = 0.0;
+          b = 1.0 - (heightValue - 0.33) * 3;
+        } else {
+          r = 1.0;
+          g = (heightValue - 0.66) * 3;
+          b = 0.0;
+        }
+      }
+      
+      colors[i * 3] = r;
+      colors[i * 3 + 1] = g;
+      colors[i * 3 + 2] = b;
+    }
+    
+    this.geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    
+    // Create material
+    this.material = new THREE.MeshPhongMaterial({ 
+      vertexColors: true,
+      side: THREE.DoubleSide,
+      shininess: 30,
+      emissive: 0x333333,
+      emissiveIntensity: 0.5,
+      specular: 0xffffff,
+      wireframe: this.wireframe
+    });
+    
+    // Create mesh
+    this.mesh = new THREE.Mesh(this.geometry, this.material);
+    this.scene.add(this.mesh);
+  }
+
+  // Update existing geometry
+  updateGeometry() {
+    if (!this.geometry || !this.mesh) {
+      this.rebuildGeometry();
+      return;
+    }
+    
+    // Update positions if size matches
+    if (this.geometry.attributes.position.count === this.vertices.length) {
+      const positions = this.geometry.attributes.position.array;
+      for (let i = 0; i < this.vertices.length; i++) {
+        positions[i * 3] = this.vertices[i].pos.x;
+        positions[i * 3 + 1] = this.vertices[i].pos.y;
+        positions[i * 3 + 2] = this.vertices[i].pos.z;
+      }
+      
+      this.geometry.attributes.position.needsUpdate = true;
+      this.geometry.computeVertexNormals();
+    } else {
+      // Otherwise rebuild
+      this.rebuildGeometry();
+    }
+    
+    this.updateInfoDisplay();
+  }
+
+  // Calculate distance between edges
+  distanceBetweenEdges(a0, a1, b0, b1) {
+    const A = new THREE.Vector3().subVectors(a1, a0);
+    const B = new THREE.Vector3().subVectors(b1, b0);
+    const C = new THREE.Vector3().subVectors(b0, a0);
+    
+    // Optimization: quick check using bounding boxes
+    const boxA = new THREE.Box3().setFromPoints([a0, a1]);
+    const boxB = new THREE.Box3().setFromPoints([b0, b1]);
+    
+    if (!boxA.intersectsBox(boxB) && boxA.distanceToPoint(b0) > this.collisionThreshold && 
+        boxB.distanceToPoint(a0) > this.collisionThreshold) {
+      return {
+        distance: Infinity,
+        pointOnA: null,
+        pointOnB: null
+      };
+    }
+    
+    // Quick check if lines are parallel
+    const Aen = A.dot(A);
+    const Ben = B.dot(B);
+    const AxB = new THREE.Vector3().crossVectors(A, B).length();
+    
+    if (AxB < 1e-6 * Math.sqrt(Aen * Ben)) {
+      return {
+        distance: Infinity,
+        pointOnA: null,
+        pointOnB: null
+      };
+    }
+    
+    // Calculate closest points
+    const AC = new THREE.Vector3().crossVectors(A, C);
+    const BC = new THREE.Vector3().crossVectors(B, C);
+    
+    const ACxB = new THREE.Vector3().crossVectors(AC, B).length();
+    const AxBC = new THREE.Vector3().crossVectors(A, BC).length();
+    
+    let s = AxBC / AxB;
+    let t = ACxB / AxB;
+    
+    // Clamp parameters
+    if (s < 0) s = 0;
+    else if (s > 1) s = 1;
+    
+    if (t < 0) t = 0;
+    else if (t > 1) t = 1;
+    
+    // Calculate closest points
+    const pointOnA = new THREE.Vector3().addVectors(a0, A.clone().multiplyScalar(s));
+    const pointOnB = new THREE.Vector3().addVectors(b0, B.clone().multiplyScalar(t));
+    
+    return {
+      distance: pointOnA.distanceTo(pointOnB),
+      pointOnA,
+      pointOnB
+    };
+  }
+
+  // Check for triangle intersection
+  triangleIntersection(tri1, tri2) {
+    // Quick bounding box test
+    const box1 = new THREE.Box3().setFromPoints(tri1);
+    const box2 = new THREE.Box3().setFromPoints(tri2);
+    
+    if (!box1.intersectsBox(box2)) {
+      return { intersect: false };
+    }
+    
+    // Check proximity between triangles
+    const center1 = new THREE.Vector3().add(tri1[0]).add(tri1[1]).add(tri1[2]).divideScalar(3);
+    const center2 = new THREE.Vector3().add(tri2[0]).add(tri2[1]).add(tri2[2]).divideScalar(3);
+    const dist = center1.distanceTo(center2);
+    
+    if (dist < this.collisionThreshold) {
+      const dir = new THREE.Vector3().subVectors(center1, center2).normalize();
+      return { intersect: true, direction: dir };
+    }
+    
+    // Check edges
+    for (let i = 0; i < 3; i++) {
+      const e1Start = tri1[i];
+      const e1End = tri1[(i + 1) % 3];
+      
+      for (let j = 0; j < 3; j++) {
+        const e2Start = tri2[j];
+        const e2End = tri2[(j + 1) % 3];
+        
+        const result = this.distanceBetweenEdges(e1Start, e1End, e2Start, e2End);
+        
+        if (result.distance < this.collisionThreshold) {
+          const dir = new THREE.Vector3().subVectors(result.pointOnA, result.pointOnB).normalize();
+          return { intersect: true, direction: dir };
+        }
+      }
+    }
+    
+    return { intersect: false };
+  }
+
+  // Optimized collision detection using spatial grid
+  detectCollisions(time) {
+    let collidedItems = new Set();
+    let localCollisions = 0;
+    
+    // Check edge collisions
+    const boundaryEdges = this.findBoundaryEdges();
+    
+    for (const edge1 of boundaryEdges) {
+      // Skip recently collided edges
+      if (time - edge1.lastCollision < 0.2) continue;
+      if (collidedItems.has(edge1.key)) continue;
+      
+      const v1Start = this.vertices[edge1.v1].pos;
+      const v1End = this.vertices[edge1.v2].pos;
+      const midpoint = new THREE.Vector3().addVectors(v1Start, v1End).multiplyScalar(0.5);
+      
+      // Query nearby edges
+      const nearbyItems = this.grid.query(midpoint, this.collisionThreshold * 2);
+      
+      for (const item of nearbyItems) {
+        if (item.type !== 'edge') continue;
+        
+        const edge2Key = item.key;
+        if (edge2Key === edge1.key || collidedItems.has(edge2Key)) continue;
+        
+        const edge2 = this.edges.get(edge2Key);
+        if (!edge2 || time - edge2.lastCollision < 0.2) continue;
+        
+        // Skip if edges share vertices
+        if (edge1.v1 === edge2.v1 || edge1.v1 === edge2.v2 || 
+            edge1.v2 === edge2.v1 || edge1.v2 === edge2.v2) continue;
+        
+        const v2Start = this.vertices[edge2.v1].pos;
+        const v2End = this.vertices[edge2.v2].pos;
+        
+        // Check distance
+        const result = this.distanceBetweenEdges(v1Start, v1End, v2Start, v2End);
+        
+        if (result.distance < this.collisionThreshold) {
+          localCollisions++;
+          collidedItems.add(edge1.key);
+          collidedItems.add(edge2Key);
+          
+          // Record collision time
+          edge1.lastCollision = time;
+          edge2.lastCollision = time;
+          
+          // Apply repulsion force
+          const repulsionDir = new THREE.Vector3().subVectors(
+            result.pointOnA, result.pointOnB
+          ).normalize();
+          
+          const repulsionForce = 0.15;
+          
+          this.vertices[edge1.v1].vel.add(repulsionDir.clone().multiplyScalar(repulsionForce));
+          this.vertices[edge1.v2].vel.add(repulsionDir.clone().multiplyScalar(repulsionForce));
+          
+          this.vertices[edge2.v1].vel.sub(repulsionDir.clone().multiplyScalar(repulsionForce));
+          this.vertices[edge2.v2].vel.sub(repulsionDir.clone().multiplyScalar(repulsionForce));
+          
+          // Modify growth directions
+          if (edge1.growthDir && edge2.growthDir) {
+            const perpDir = new THREE.Vector3().crossVectors(
+              repulsionDir,
+              new THREE.Vector3(Math.random(), Math.random(), Math.random())
+            ).normalize();
+            
+            edge1.growthDir.lerp(perpDir, 0.3).normalize();
+            edge2.growthDir.lerp(perpDir.clone().negate(), 0.3).normalize();
+          }
+          
+          break;
+        }
+      }
+    }
+    
+    // Face collision detection
+    for (let i = 0; i < this.faces.length; i++) {
+      const face1 = this.faces[i];
+      
+      // Skip if any vertex recently collided
+      if (face1.some(idx => collidedItems.has(idx))) continue;
+      
+      const face1Verts = face1.map(idx => this.vertices[idx].pos);
+      const center = this.calculateFaceCenter(face1);
+      
+      // Query nearby faces
+      const nearbyItems = this.grid.query(center, this.collisionThreshold * 3);
+      
+      for (const item of nearbyItems) {
+        if (item.type !== 'face' || item.index <= i) continue;
+        
+        const j = item.index;
+        const face2 = this.faces[j];
+        
+        // Skip if faces share vertices
+        if (face1.some(v => face2.includes(v))) continue;
+        
+        const face2Verts = face2.map(idx => this.vertices[idx].pos);
+        
+        // Check intersection
+        const result = this.triangleIntersection(face1Verts, face2Verts);
+        
+        if (result.intersect) {
+          localCollisions++;
+          face1.forEach(idx => collidedItems.add(idx));
+          face2.forEach(idx => collidedItems.add(idx));
+          
+          // Apply repulsion
+          const repulsionForce = 0.2;
+          
+          // Apply to face1 vertices
+          face1.forEach(idx => {
+            this.vertices[idx].vel.add(result.direction.clone().multiplyScalar(repulsionForce));
+            this.vertices[idx].lastCollision = time;
+          });
+          
+          // Apply to face2 vertices
+          face2.forEach(idx => {
+            this.vertices[idx].vel.sub(result.direction.clone().multiplyScalar(repulsionForce));
+            this.vertices[idx].lastCollision = time;
+          });
+          
+          break;
+        }
+      }
+    }
+    
+    if (localCollisions > 0) {
+      this.collisionCount += localCollisions;
+      this.updateInfoDisplay();
+    }
+    
+    return localCollisions;
+  }
+
+  // Simulate growth
+  simulateGrowth(dt, time) {
+    // Find boundary edges
+    const boundaryEdges = this.findBoundaryEdges();
+    
+    // Update edge ages
+    for (let [key, edge] of this.edges) {
+      edge.age += dt;
+    }
+    
+    // Process each boundary edge
+    for (const edge of boundaryEdges) {
+      // Skip if this edge recently had a collision
+      if (time - edge.lastCollision < 0.5) continue;
+      
+      const v1 = this.vertices[edge.v1];
+      const v2 = this.vertices[edge.v2];
+      
+      // Skip non-boundary
+      if (!(v1.isBoundary || v2.isBoundary)) continue;
+      
+      // Get growth direction
+      let growthDir = edge.growthDir.clone();
+      
+      // Calculate tangent vector
+      const tangent = new THREE.Vector3().subVectors(v2.pos, v1.pos).normalize();
+      
+      // Calculate normal vector
+      const normal = new THREE.Vector3().crossVectors(tangent, growthDir).normalize();
+      
+      // Enhance boundary growth
+      if (edge.isBoundary) {
+        // Make growth more perpendicular to boundary
+        growthDir.lerp(normal, 0.7).normalize();
+        
+        // Add slight upward bias
+        growthDir.z += 0.3 * Math.random();
+        growthDir.normalize();
+      }
+      
+      // Minor randomization
+      growthDir.x += (Math.random() - 0.5) * 0.1;
+      growthDir.y += (Math.random() - 0.5) * 0.1;
+      growthDir.z += (Math.random() - 0.5) * 0.1;
+      growthDir.normalize();
+      
+      // Calculate growth strength
+      const ageFactor = Math.min(edge.age * 0.5, 1.0);
+      const boundaryMultiplier = edge.isBoundary ? 1.5 : 1.0;
+      const growthForce = 0.3 * dt * ageFactor * boundaryMultiplier;
+      
+      // Apply growth force
+      const growthVector = growthDir.clone().multiplyScalar(growthForce);
+      v1.vel.add(growthVector);
+      v2.vel.add(growthVector);
+    }
+    
+    // Integrate velocities
+    for (let v of this.vertices) {
+      v.pos.add(v.vel.clone().multiplyScalar(dt));
+      v.vel.multiplyScalar(0.95); // Damping
+      
+      // Cap max velocity
+      const maxSpeed = 0.5;
+      if (v.vel.length() > maxSpeed) {
+        v.vel.normalize().multiplyScalar(maxSpeed);
+      }
+    }
+  }
+
+  // Apply edge length constraints
+  applyEdgeConstraints() {
+    for (let [key, edge] of this.edges) {
+      let v1 = this.vertices[edge.v1];
+      let v2 = this.vertices[edge.v2];
+      let currentDist = v1.pos.distanceTo(v2.pos);
+      
+      // For long edges
+      if (currentDist > edge.restLength * 1.5) {
+        let correction = (currentDist - edge.restLength) * 0.2;
+        let dir = new THREE.Vector3().subVectors(v2.pos, v1.pos).normalize();
+        
+        v1.pos.add(dir.clone().multiplyScalar(correction * 0.5));
+        v2.pos.sub(dir.clone().multiplyScalar(correction * 0.5));
+      }
+      
+      // For short edges
+      if (currentDist < edge.restLength * 0.5) {
+        let correction = (edge.restLength - currentDist) * 0.2;
+        let dir = new THREE.Vector3().subVectors(v2.pos, v1.pos).normalize();
+        
+        if (isNaN(dir.x) || isNaN(dir.y) || isNaN(dir.z)) {
+          dir.set(Math.random() * 2 - 1, Math.random() * 2 - 1, Math.random() * 2 - 1).normalize();
+        }
+        
+        v1.pos.sub(dir.clone().multiplyScalar(correction * 0.5));
+        v2.pos.add(dir.clone().multiplyScalar(correction * 0.5));
+      }
+    }
+  }
+
+  // Optimized Catmull-Clark subdivision
+  subdivideMesh(time) {
+    // Skip if too many vertices
+    if (this.vertices.length >= 3000) return false;
+    
+    // Find edge pairs for quads
+    const quads = this.identifyQuads();
+    if (quads.length === 0) return false;
+    
+    // Create new vertices and faces
+    const newVertices = [...this.vertices];
+    const newFaces = [];
+    
+    // Create face points
+    const facePoints = [];
+    for (const quad of quads) {
+      const facePos = new THREE.Vector3();
+      const faceVel = new THREE.Vector3();
+      let minAge = Infinity;
+      
+      // Average vertex positions
+      for (const idx of quad) {
+        facePos.add(this.vertices[idx].pos);
+        faceVel.add(this.vertices[idx].vel);
+        minAge = Math.min(minAge, this.vertices[idx].age);
+      }
+      
+      facePos.divideScalar(4);
+      faceVel.divideScalar(4);
+      
+      // Add variation
+      facePos.x += (Math.random() - 0.5) * 0.03;
+      facePos.y += (Math.random() - 0.5) * 0.03;
+      facePos.z += (Math.random() - 0.5) * 0.03;
+      
+      // Create face point
+      const facePointIdx = newVertices.length;
+      newVertices.push({
+        pos: facePos,
+        vel: faceVel,
+        age: minAge,
+        growthDir: new THREE.Vector3(Math.random() * 2 - 1, Math.random() * 2 - 1, Math.random() * 2 - 1).normalize(),
+        isBoundary: false,
+        lastCollision: time
+      });
+      
+      facePoints.push(facePointIdx);
+    }
+    
+    // Create edge points
+    const edgePoints = new Map();
+    
+    for (let [edgeKey, edge] of this.edges) {
+      const v1 = edge.v1;
+      const v2 = edge.v2;
+      
+      // Calculate edge midpoint
+      const edgePos = new THREE.Vector3().addVectors(
+        this.vertices[v1].pos, 
+        this.vertices[v2].pos
+      ).multiplyScalar(0.5);
+      
+      // Add variation
+      edgePos.x += (Math.random() - 0.5) * 0.02;
+      edgePos.y += (Math.random() - 0.5) * 0.02;
+      edgePos.z += (Math.random() - 0.5) * 0.02;
+      
+      // Create edge point
+      const edgePointIdx = newVertices.length;
+      newVertices.push({
+        pos: edgePos,
+        vel: new THREE.Vector3().addVectors(
+          this.vertices[v1].vel, 
+          this.vertices[v2].vel
+        ).multiplyScalar(0.5),
+        age: Math.min(this.vertices[v1].age, this.vertices[v2].age),
+        growthDir: this.vertices[v1].growthDir.clone(),
+        isBoundary: edge.isBoundary,
+        lastCollision: Math.min(
+          this.vertices[v1].lastCollision, 
+          this.vertices[v2].lastCollision
+        )
+      });
+      
+      edgePoints.set(edgeKey, edgePointIdx);
+    }
+    
+    // Create new faces
+    let quadIndex = 0;
+    for (const quad of quads) {
+      const facePointIdx = facePoints[quadIndex++];
+      
+      // Create 4 new quads (triangulated as 8 triangles)
+      for (let i = 0; i < 4; i++) {
+
+        const cornerIdx = quad[i];
+        const nextCornerIdx = quad[(i + 1) % 4];
+        
+        // Get edge points
+        const edgeKey1 = cornerIdx < nextCornerIdx ? 
+          `${cornerIdx}_${nextCornerIdx}` : 
+          `${nextCornerIdx}_${cornerIdx}`;
+          
+        const edgeKey2 = cornerIdx < quad[(i + 3) % 4] ? 
+          `${cornerIdx}_${quad[(i + 3) % 4]}` : 
+          `${quad[(i + 3) % 4]}_${cornerIdx}`;
+        
+        const edgePoint1 = edgePoints.get(edgeKey1);
+        const edgePoint2 = edgePoints.get(edgeKey2);
+        
+        if (edgePoint1 !== undefined && edgePoint2 !== undefined) {
+          // Create two triangles
+          newFaces.push([cornerIdx, edgePoint1, facePointIdx]);
+          newFaces.push([cornerIdx, facePointIdx, edgePoint2]);
+        }
+      }
+    }
+    
+    // Use subdivision results
+    this.vertices = newVertices;
+    this.faces = newFaces;
+    this.buildEdgeMap();
+    this.updateSpatialGrid();
+    this.rebuildGeometry();
+    
+    return true;
+  }
+
+  // Identify potential quads from triangle pairs
+  identifyQuads() {
+    const quads = [];
+    const processed = new Set();
+    
+    // Check each edge
+    for (const [edgeKey, edge] of this.edges) {
+      // Skip boundary edges
+      if (edge.isBoundary) continue;
+      
+      // Skip processed edges
+      if (processed.has(edgeKey)) continue;
+      
+      // Only process edges with exactly 2 faces
+      if (edge.faces.length !== 2) continue;
+      
+      const f1 = edge.faces[0];
+      const f2 = edge.faces[1];
+      
+      // Skip processed faces
+      if (processed.has(`f${f1}`) || processed.has(`f${f2}`)) continue;
+      
+      const face1 = this.faces[f1];
+      const face2 = this.faces[f2];
+      
+      // Find shared vertices
+      const shared = face1.filter(v => face2.includes(v));
+      
+      if (shared.length === 2) {
+        // Find unshared vertices
+        const v1 = face1.find(v => !shared.includes(v));
+        const v2 = face2.find(v => !shared.includes(v));
+        
+        if (v1 !== undefined && v2 !== undefined) {
+          // Reorder for consistent quad
+          quads.push([shared[0], v1, shared[1], v2]);
+          
+          // Mark as processed
+          processed.add(edgeKey);
+          processed.add(`f${f1}`);
+          processed.add(`f${f2}`);
+        }
+      }
+    }
+    
+    return quads;
+  }
+
+  // Update simulation
+  update(time) {
+    const dt = Math.min(Math.max((time - this.lastTime) / 1000, 0.001), 0.05);
+    this.lastTime = time;
+    
+    // Detect collisions
+    this.detectCollisions(time);
+    
+    // Simulate growth
+    this.simulateGrowth(dt, time);
+    
+    // Apply edge constraints
+    this.applyEdgeConstraints();
+    
+    // Update spatial grid
+    this.updateSpatialGrid();
+    
+    // Update geometry
+    this.updateGeometry();
+  }
+
+  // Toggle wireframe
+  toggleWireframe() {
+    this.wireframe = !this.wireframe;
+    if (this.material) {
+      this.material.wireframe = this.wireframe;
+    }
+  }
+
+  // Set collision threshold
+  setCollisionThreshold(value) {
+    this.collisionThreshold = value;
+  }
+}
+
+// Main app
+class App {
+  constructor() {
+    this.setup();
+    this.addEventListeners();
+    this.lastSubdivideTime = 0;
+    this.isPaused = false;
+    this.frameCounter = 0;
+  }
+
+  // Setup scene
+  setup() {
+    // Create scene
+    this.scene = new THREE.Scene();
+    this.scene.background = new THREE.Color(0x111111);
+    
+    // Create camera
+    this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    this.camera.position.z = 5;
+    
+    // Create renderer
+    this.renderer = new THREE.WebGLRenderer({ antialias: true });
+    this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this.renderer.setPixelRatio(window.devicePixelRatio);
+    
+    // Use canvas container instead of body
     const container = document.getElementById('canvas-container');
     if (container) {
-        container.appendChild(renderer.domElement);
+        container.appendChild(this.renderer.domElement);
     } else {
         console.error("Canvas container not found, appending to body");
-        document.body.appendChild(renderer.domElement);
+        document.body.appendChild(this.renderer.domElement);
     }
+    
+    // Add lights
+    const ambientLight = new THREE.AmbientLight(0x404040, 1);
+    this.scene.add(ambientLight);
+    
+    const directionalLight1 = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight1.position.set(1, 1, 1);
+    this.scene.add(directionalLight1);
+    
+    const directionalLight2 = new THREE.DirectionalLight(0x99ccff, 0.5);
+    directionalLight2.position.set(-1, -1, -1);
+    this.scene.add(directionalLight2);
+    
+    // Add axes helper
+    const axesHelper = new THREE.AxesHelper(3);
+    this.scene.add(axesHelper);
+    
+    // Create mesh manager
+    this.meshManager = new MeshManager(this.scene);
+    this.meshManager.createGridMesh(8, 2);
+    this.meshManager.rebuildGeometry();
+  }
 
-    // Lighting
-    scene.add(new THREE.AmbientLight(0x404040));
-    const light = new THREE.DirectionalLight(0xffffff, 1);
-    light.position.set(1, 1, 1);
-    scene.add(light);
-    const light2 = new THREE.DirectionalLight(0xffffff, 0.5);
-    light2.position.set(-1, 1, -1);
-    scene.add(light2);
-
-    // Constants
-    const RELAX_FACTOR = 0.05;
-    const EDGE_LENGTH = 0.01;
-    const MIN_RADIUS = 0.05;
-    const TRIANGLE_COLLISION_THRESHOLD = 0.8;
-    let maxTrianglesToCheck = 100;
-
-    // Ground plane
-    const planeGeometry = new THREE.PlaneGeometry(10, 10);
-    const planeMaterial = new THREE.MeshBasicMaterial({
-        color: 0x333333,
-        side: THREE.DoubleSide,
-        transparent: true,
-        opacity: 0.5
-    });
-    const plane = new THREE.Mesh(planeGeometry, planeMaterial);
-    plane.rotation.x = Math.PI / 2;
-    plane.position.y = -1;
-    scene.add(plane);
-
-    // Camera setup
-    camera.position.z = 3;
-
-    // Simple orbit controls
+  // Add event listeners
+  addEventListeners() {
+    // Mouse controls
     let isDragging = false;
     let previousMousePosition = { x: 0, y: 0 };
-    const cameraTarget = new THREE.Vector3(0, 0, 0);
-
-    renderer.domElement.addEventListener('mousedown', (e) => {
-        isDragging = true;
-        previousMousePosition = { x: e.clientX, y: e.clientY };
+    
+    this.renderer.domElement.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      previousMousePosition = { x: e.clientX, y: e.clientY };
     });
-
-    renderer.domElement.addEventListener('mousemove', (e) => {
-        if (!isDragging) return;
-        const deltaX = e.clientX - previousMousePosition.x;
-        const deltaY = e.clientY - previousMousePosition.y;
-        const cameraPosition = camera.position.clone().sub(cameraTarget);
-        const quaternionY = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -deltaX * 0.01);
-        cameraPosition.applyQuaternion(quaternionY);
-        const right = new THREE.Vector3(1, 0, 0);
-        right.applyQuaternion(camera.quaternion);
-        const quaternionX = new THREE.Quaternion().setFromAxisAngle(right, -deltaY * 0.01);
-        cameraPosition.applyQuaternion(quaternionX);
-        camera.position.copy(cameraPosition.add(cameraTarget));
-        camera.lookAt(cameraTarget);
-        previousMousePosition = { x: e.clientX, y: e.clientY };
+    
+    this.renderer.domElement.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      const deltaX = e.clientX - previousMousePosition.x;
+      const deltaY = e.clientY - previousMousePosition.y;
+      
+      this.scene.rotation.y += deltaX * 0.01;
+      this.scene.rotation.x += deltaY * 0.01;
+      
+      previousMousePosition = { x: e.clientX, y: e.clientY };
     });
-
-    renderer.domElement.addEventListener('mouseup', () => isDragging = false);
-    renderer.domElement.addEventListener('mouseleave', () => isDragging = false);
-
-    renderer.domElement.addEventListener('wheel', (e) => {
-        const delta = Math.sign(e.deltaY);
-        const cameraPosition = camera.position.clone().sub(cameraTarget);
-        cameraPosition.multiplyScalar(1 + delta * 0.1);
-        camera.position.copy(cameraPosition.add(cameraTarget));
+    
+    this.renderer.domElement.addEventListener('mouseup', () => isDragging = false);
+    this.renderer.domElement.addEventListener('mouseleave', () => isDragging = false);
+    
+    this.renderer.domElement.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const delta = Math.sign(e.deltaY);
+      this.camera.position.z += delta * 0.5;
+      this.camera.position.z = Math.max(1, Math.min(20, this.camera.position.z));
     });
-
-    // Mesh variables
-    const vertices = [];
-    const vertexAges = [];
-    let edges = [];
-    let faces = [];
-    let mesh, edgeLines;
-    let iteration = 0;
-
-    // Control variables
-    let isRunning = true;
-    let lastUpdate = 0;
-    let updateInterval = 100; // ms
-
-    // UI controls
-    document.getElementById('resetBtn').addEventListener('click', resetMesh);
-    document.getElementById('pauseBtn').addEventListener('click', togglePause);
-    document.getElementById('debugBtn').addEventListener('click', () => debug.clear());
-    document.getElementById('speedSlider').addEventListener('input', updateSpeed);
-    document.getElementById('collisionSlider').addEventListener('input', updateCollisionCheck);
-    // New adaptive smooth button
-    document.getElementById('adaptiveSmoothBtn').addEventListener('click', adaptiveSmooth);
-
-    function togglePause() {
-        isRunning = !isRunning;
-        document.getElementById('pauseBtn').textContent = isRunning ? 'Pause' : 'Resume';
-        debug.log(isRunning ? "Resumed" : "Paused");
+    
+    // UI controls - use a safer approach that checks if elements exist
+    const resetBtn = document.getElementById('resetBtn');
+    if (resetBtn) {
+      resetBtn.addEventListener('click', () => {
+        this.meshManager.createGridMesh(8, 2);
+        this.meshManager.rebuildGeometry();
+      });
+    } else {
+      console.warn("Reset button not found in DOM");
     }
-
-    function updateSpeed(e) {
-        updateInterval = parseInt(e.target.value);
-        debug.log(`Speed set to ${updateInterval}ms`);
+    
+    const wireframeBtn = document.getElementById('wireframeBtn');
+    if (wireframeBtn) {
+      wireframeBtn.addEventListener('click', () => {
+        this.meshManager.toggleWireframe();
+      });
+    } else {
+      console.warn("Wireframe button not found in DOM");
     }
-
-    function updateCollisionCheck(e) {
-        maxTrianglesToCheck = parseInt(e.target.value);
-        document.getElementById('collisionValue').textContent = maxTrianglesToCheck;
-        debug.log(`Collision checks set to ${maxTrianglesToCheck}`);
+    
+    const pauseBtn = document.getElementById('pauseBtn');
+    if (pauseBtn) {
+      pauseBtn.addEventListener('click', () => {
+        this.isPaused = !this.isPaused;
+        pauseBtn.textContent = this.isPaused ? "Resume" : "Pause";
+      });
+    } else {
+      console.warn("Pause button not found in DOM");
     }
-
-    // --- Mesh Functions ---
-
-    function checkTriangleCollision(faceA, faceB) {
-        if (faceA.some(v => faceB.includes(v))) return;
-        try {
-            const a1 = vertices[faceA[0]], a2 = vertices[faceA[1]], a3 = vertices[faceA[2]];
-            const b1 = vertices[faceB[0]], b2 = vertices[faceB[1]], b3 = vertices[faceB[2]];
-            const centerA = new THREE.Vector3().add(a1).add(a2).add(a3).divideScalar(3);
-            const centerB = new THREE.Vector3().add(b1).add(b2).add(b3).divideScalar(3);
-            const normalA = new THREE.Vector3().crossVectors(
-                new THREE.Vector3().subVectors(a2, a1),
-                new THREE.Vector3().subVectors(a3, a1)
-            ).normalize();
-            const normalB = new THREE.Vector3().crossVectors(
-                new THREE.Vector3().subVectors(b2, b1),
-                new THREE.Vector3().subVectors(b3, b1)
-            ).normalize();
-
-            if (centerA.distanceTo(centerB) < TRIANGLE_COLLISION_THRESHOLD) {
-                const repulsionDir = new THREE.Vector3().subVectors(centerA, centerB).normalize();
-                const force = repulsionDir.clone().multiplyScalar(0.05);
-                const normalForceA = normalA.clone().multiplyScalar(0.02);
-                const normalForceB = normalB.clone().multiplyScalar(0.02);
-                vertices[faceA[0]].add(force).add(normalForceA);
-                vertices[faceA[1]].add(force).add(normalForceA);
-                vertices[faceA[2]].add(force).add(normalForceA);
-                vertices[faceB[0]].sub(force).add(normalForceB);
-                vertices[faceB[1]].sub(force).add(normalForceB);
-                vertices[faceB[2]].sub(force).add(normalForceB);
-            }
-        } catch (error) {
-            console.error("Error in checkTriangleCollision:", error);
-            debug.log(`ERROR in checkTriangleCollision: ${error.message}`);
-        }
+    
+    const collisionSlider = document.getElementById('collisionSlider');
+    const collisionValue = document.getElementById('collisionValue');
+    if (collisionSlider && collisionValue) {
+      collisionSlider.addEventListener('input', (e) => {
+        const value = parseFloat(e.target.value);
+        this.meshManager.setCollisionThreshold(value);
+        collisionValue.textContent = value.toFixed(2);
+      });
+    } else {
+      console.warn("Collision slider or value element not found in DOM");
     }
-
-    function detectTriangleCollisions() {
-        try {
-            if (faces.length > maxTrianglesToCheck) {
-                const sampled = [];
-                for (let i = 0; i < maxTrianglesToCheck; i++) {
-                    sampled.push(Math.floor(Math.random() * faces.length));
-                }
-                for (let i = 0; i < sampled.length; i++) {
-                    for (let j = i + 1; j < sampled.length; j++) {
-                        checkTriangleCollision(faces[sampled[i]], faces[sampled[j]]);
-                    }
-                }
-                return;
-            }
-            for (let i = 0; i < faces.length; i++) {
-                for (let j = i + 1; j < faces.length; j++) {
-                    checkTriangleCollision(faces[i], faces[j]);
-                }
-            }
-        } catch (error) {
-            console.error("Error in detectTriangleCollisions:", error);
-            debug.log(`ERROR in detectTriangleCollisions: ${error.message}`);
-        }
-    }
-
-    function relax() {
-        try {
-            for (const [i, j] of edges) {
-                const v1 = vertices[i], v2 = vertices[j];
-                const dist = v1.distanceTo(v2);
-                if (dist !== EDGE_LENGTH) {
-                    const force = new THREE.Vector3().subVectors(v2, v1);
-                    const strength = (dist - EDGE_LENGTH) * 0.2 * RELAX_FACTOR;
-                    force.normalize().multiplyScalar(strength);
-                    v1.add(force);
-                    v2.sub(force);
-                }
-            }
-            detectTriangleCollisions();
-            for (const vertex of vertices) {
-                const distFromCenter = vertex.length();
-                if (distFromCenter < MIN_RADIUS) {
-                    const pushDirection = vertex.clone().normalize();
-                    const pushAmount = MIN_RADIUS - distFromCenter;
-                    pushDirection.multiplyScalar(pushAmount * 0.2);
-                    vertex.add(pushDirection);
-                }
-            }
-            const planeY = -1.0;
-            for (const vertex of vertices) {
-                if (vertex.y < planeY) {
-                    vertex.y = planeY + (planeY - vertex.y) * 0.1;
-                }
-            }
-        } catch (error) {
-            console.error("Error in relax:", error);
-            debug.log(`ERROR in relax: ${error.message}`);
-        }
-    }
-
-    // --- New Function: Optimize Floor Plates ---
-    function optimizeFloorPlates() {
-        for (let i = 0; i < faces.length; i++) {
-            const face = faces[i];
-            const v1 = vertices[face[0]], v2 = vertices[face[1]], v3 = vertices[face[2]];
-            const normal = new THREE.Vector3().crossVectors(
-                new THREE.Vector3().subVectors(v2, v1),
-                new THREE.Vector3().subVectors(v3, v1)
-            ).normalize();
-            if (Math.abs(normal.y) > 0.95) { // nearly horizontal
-                const avgY = (v1.y + v2.y + v3.y) / 3;
-                v1.y = avgY; v2.y = avgY; v3.y = avgY;
-            }
-        }
-    }
-
-    // --- New Function: Optimize Curved Slopes ---
-    function optimizeCurvedSlopes() {
-        for (let i = 0; i < faces.length; i++) {
-            const face = faces[i];
-            const v1 = vertices[face[0]], v2 = vertices[face[1]], v3 = vertices[face[2]];
-            const normal = new THREE.Vector3().crossVectors(
-                new THREE.Vector3().subVectors(v2, v1),
-                new THREE.Vector3().subVectors(v3, v1)
-            ).normalize();
-            if (Math.abs(normal.y) > 0.95) continue;
-
-            const yVals = [v1.y, v2.y, v3.y];
-            const avgY = (yVals[0] + yVals[1] + yVals[2]) / 3;
-            const minY = Math.min(...yVals);
-            const maxY = Math.max(...yVals);
-            const rangeY = maxY - minY;
-            if (rangeY > 0.005 && rangeY < 0.1) {
-                [v1, v2, v3].forEach(v => {
-                    const diff = v.y - avgY;
-                    const r = diff / (rangeY / 2); // normalized to [-1,1]
-                    const newR = Math.sin(r * (Math.PI / 2));
-                    v.y = avgY + newR * (rangeY / 2);
-                });
-            }
-        }
-    }
-
-    // --- New Function: Smooth Differential Growth ---
-    function smoothDifferentialGrowth() {
-        const neighborMap = [];
-        for (let i = 0; i < vertices.length; i++) {
-            neighborMap[i] = [];
-        }
-        edges.forEach(edge => {
-            const [a, b] = edge;
-            neighborMap[a].push(b);
-            neighborMap[b].push(a);
-        });
-        const newPositions = vertices.map(v => v.clone());
-        for (let i = 0; i < vertices.length; i++) {
-            const neighbors = neighborMap[i];
-            if (neighbors.length > 0) {
-                const avg = new THREE.Vector3(0, 0, 0);
-                neighbors.forEach(n => { avg.add(vertices[n]); });
-                avg.divideScalar(neighbors.length);
-                const factor = 0.1;
-                const delta = new THREE.Vector3().subVectors(avg, vertices[i]);
-                newPositions[i].add(delta.multiplyScalar(factor));
-            }
-        }
-        for (let i = 0; i < vertices.length; i++) {
-            vertices[i].copy(newPositions[i]);
-        }
-    }
-
-    // --- New Function: Adaptive Smooth ---
-    // Smooth only vertices with high local curvature.
-    function adaptiveSmooth() {
-        const curvatureThreshold = 0.2; // adjust threshold as needed
-        const highCurvatureVertices = new Set();
-        // Determine curvature per vertex
-        for (let i = 0; i < vertices.length; i++) {
-            let connectedFaces = [];
-            for (let f = 0; f < faces.length; f++) {
-                if (faces[f].includes(i)) {
-                    connectedFaces.push(f);
-                }
-            }
-            if (connectedFaces.length < 2) continue;
-            let normals = [];
-            connectedFaces.forEach(faceIdx => {
-                const face = faces[faceIdx];
-                const [a, b, c] = face;
-                const v1 = vertices[a], v2 = vertices[b], v3 = vertices[c];
-                const normal = new THREE.Vector3().crossVectors(
-                    new THREE.Vector3().subVectors(v2, v1),
-                    new THREE.Vector3().subVectors(v3, v1)
-                ).normalize();
-                normals.push(normal);
-            });
-            let totalAngle = 0, count = 0;
-            for (let j = 0; j < normals.length; j++) {
-                for (let k = j + 1; k < normals.length; k++) {
-                    let dot = normals[j].dot(normals[k]);
-                    let angle = Math.acos(Math.max(-1, Math.min(1, dot)));
-                    totalAngle += angle;
-                    count++;
-                }
-            }
-            let averageAngle = count > 0 ? totalAngle / count : 0;
-            if (averageAngle > curvatureThreshold) {
-                highCurvatureVertices.add(i);
-            }
-        }
-
-        // Build neighbor map from edges
-        const neighborMap = [];
-        for (let i = 0; i < vertices.length; i++) {
-            neighborMap[i] = [];
-        }
-        edges.forEach(edge => {
-            const [a, b] = edge;
-            neighborMap[a].push(b);
-            neighborMap[b].push(a);
-        });
-        // Smooth only high-curvature vertices
-        highCurvatureVertices.forEach(i => {
-            const neighbors = neighborMap[i];
-            if (neighbors.length === 0) return;
-            let avg = new THREE.Vector3(0, 0, 0);
-            neighbors.forEach(n => { avg.add(vertices[n]); });
-            avg.divideScalar(neighbors.length);
-            const factor = 0.2; // move 20% toward the neighbor average
-            let delta = new THREE.Vector3().subVectors(avg, vertices[i]);
-            vertices[i].add(delta.multiplyScalar(factor));
-        });
-        debug.log(`Adaptive smooth applied to ${highCurvatureVertices.size} vertices.`);
-        updateMesh();
-    }
-
-    function splitSpecificEdge(edgeIndex) {
-        try {
-            if (edgeIndex >= edges.length) return;
-            debug.log(`Splitting edge ${edgeIndex}`);
-            const [a, b] = edges[edgeIndex];
-            const v1 = vertices[a], v2 = vertices[b];
-            const midpoint = new THREE.Vector3().addVectors(v1, v2).multiplyScalar(0.5);
-            const randomDir = new THREE.Vector3(
-                Math.random() > 0.5 ? 0.05 : -0.05,
-                Math.random() > 0.5 ? 0.05 : -0.05,
-                Math.random() > 0.5 ? 0.05 : -0.05
-            );
-            midpoint.add(randomDir.multiplyScalar(0.5));
-            const newIndex = vertices.length;
-            vertices.push(midpoint);
-            vertexAges.push(iteration);
-            edges.splice(edgeIndex, 1);
-            edges.push([a, newIndex], [b, newIndex]);
-            const affectedFaces = [];
-            for (let i = 0; i < faces.length; i++) {
-                if (faces[i].includes(a) && faces[i].includes(b)) {
-                    affectedFaces.push(i);
-                }
-            }
-            for (let i = affectedFaces.length - 1; i >= 0; i--) {
-                const faceIndex = affectedFaces[i];
-                const face = faces[faceIndex];
-                const c = face.find(v => v !== a && v !== b);
-                faces.splice(faceIndex, 1);
-                faces.push([a, newIndex, c], [b, newIndex, c]);
-                edges.push([newIndex, c]);
-            }
-        } catch (error) {
-            console.error("Error in splitSpecificEdge:", error);
-            debug.log(`ERROR in splitSpecificEdge: ${error.message}`);
-        }
-    }
-
-    function detectAndRefineHighCurvatureAreas() {
-        if (faces.length < 3) return;
-        try {
-            const highCurvatureVertices = new Set();
-            for (let v = 0; v < vertices.length; v++) {
-                let connectedFaces = [];
-                for (let f = 0; f < faces.length; f++) {
-                    if (faces[f].includes(v)) connectedFaces.push(f);
-                }
-                if (connectedFaces.length < 2) continue;
-                let normals = [];
-                connectedFaces.forEach(faceIdx => {
-                    const face = faces[faceIdx];
-                    const [a, b, c] = face;
-                    const v1 = vertices[a], v2 = vertices[b], v3 = vertices[c];
-                    const normal = new THREE.Vector3().crossVectors(
-                        new THREE.Vector3().subVectors(v2, v1),
-                        new THREE.Vector3().subVectors(v3, v1)
-                    ).normalize();
-                    normals.push(normal);
-                });
-                let totalAngle = 0, count = 0;
-                for (let i = 0; i < normals.length; i++) {
-                    for (let j = i + 1; j < normals.length; j++) {
-                        let dot = normals[i].dot(normals[j]);
-                        let angle = Math.acos(Math.max(-1, Math.min(1, dot)));
-                        totalAngle += angle;
-                        count++;
-                    }
-                }
-                let averageAngle = count > 0 ? totalAngle / count : 0;
-                if (averageAngle > 0.1) {
-                    highCurvatureVertices.add(v);
-                }
-            }
-            if (highCurvatureVertices.size > 0 && Math.random() < 0.7) {
-                debug.log(`Found ${highCurvatureVertices.size} high curvature vertices`);
-                const candidateEdges = [];
-                for (let e = 0; e < edges.length; e++) {
-                    const [a, b] = edges[e];
-                    if (highCurvatureVertices.has(a) || highCurvatureVertices.has(b)) {
-                        candidateEdges.push(e);
-                    }
-                }
-                if (candidateEdges.length > 0) {
-                    const edgeToSplit = candidateEdges[Math.floor(Math.random() * candidateEdges.length)];
-                    splitSpecificEdge(edgeToSplit);
-                }
-            }
-        } catch (error) {
-            console.error("Error in detectAndRefineHighCurvatureAreas:", error);
-            debug.log(`ERROR in detectAndRefineHighCurvatureAreas: ${error.message}`);
-        }
-    }
-
-    function splitRandomEdge() {
-        debug.log("Attempting to split random edge");
-        try {
-            if (edges.length === 0) return;
-            const edgeIndex = Math.floor(Math.random() * edges.length);
-            const [a, b] = edges[edgeIndex];
-            const v1 = vertices[a], v2 = vertices[b];
-            const midpoint = new THREE.Vector3().addVectors(v1, v2).multiplyScalar(0.5);
-            const randomDir = new THREE.Vector3(
-                Math.random() > 0.5 ? 0.1 : -0.1,
-                Math.random() > 0.5 ? 0.1 : -0.1,
-                Math.random() > 0.5 ? 0.1 : -0.1
-            );
-            if (Math.random() < 0.7) {
-                const edgeDir = new THREE.Vector3().subVectors(v2, v1).normalize();
-                const perpDir = new THREE.Vector3().crossVectors(edgeDir, new THREE.Vector3(0, 1, 0)).normalize();
-                const displacement = new THREE.Vector3()
-                    .addScaledVector(edgeDir, 0.05)
-                    .addScaledVector(perpDir, 0.05);
-                midpoint.add(displacement);
-            } else {
-                midpoint.add(randomDir);
-            }
-            const newIndex = vertices.length;
-            vertices.push(midpoint);
-            vertexAges.push(iteration);
-            edges.splice(edgeIndex, 1);
-            edges.push([a, newIndex], [b, newIndex]);
-            const affectedFaces = [];
-            for (let i = 0; i < faces.length; i++) {
-                if (faces[i].includes(a) && faces[i].includes(b)) {
-                    affectedFaces.push(i);
-                }
-            }
-            debug.log(`Found ${affectedFaces.length} affected faces for edge [${a},${b}]`);
-            for (let i = affectedFaces.length - 1; i >= 0; i--) {
-                const faceIndex = affectedFaces[i];
-                const face = faces[faceIndex];
-                const c = face.find(v => v !== a && v !== b);
-                faces.splice(faceIndex, 1);
-                faces.push([a, newIndex, c], [b, newIndex, c]);
-                edges.push([newIndex, c]);
-            }
-        } catch (error) {
-            console.error("Error in splitRandomEdge:", error);
-            debug.log(`ERROR in splitRandomEdge: ${error.message}`);
-        }
-    }
-
-    function subdivideRandomFace() {
-        try {
-            if (faces.length === 0) return;
-            debug.log("Subdividing random face");
-            const faceIndex = Math.floor(Math.random() * faces.length);
-            const face = faces[faceIndex];
-            const [a, b, c] = face;
-            const v1 = vertices[a], v2 = vertices[b], v3 = vertices[c];
-            const center = new THREE.Vector3().add(v1).add(v2).add(v3).divideScalar(3);
-            const randomDir = new THREE.Vector3(
-                Math.random() > 0.5 ? 0.05 : -0.05,
-                Math.random() > 0.5 ? 0.05 : -0.05,
-                Math.random() > 0.5 ? 0.05 : -0.05
-            );
-            const v1Vec = new THREE.Vector3().subVectors(v2, v1);
-            const v2Vec = new THREE.Vector3().subVectors(v3, v1);
-            const normal = new THREE.Vector3().crossVectors(v1Vec, v2Vec).normalize();
-            if (Math.random() < 0.6) {
-                const edgeDir = new THREE.Vector3().subVectors(v2, v1).normalize();
-                const displacement = new THREE.Vector3()
-                    .addScaledVector(normal, 0.05)
-                    .addScaledVector(edgeDir, 0.05);
-                center.add(displacement);
-            } else {
-                center.add(randomDir);
-            }
-            const newVertex = vertices.length;
-            vertices.push(center);
-            vertexAges.push(iteration);
-            faces.splice(faceIndex, 1);
-            faces.push([a, b, newVertex], [b, c, newVertex], [c, a, newVertex]);
-            edges.push([a, newVertex], [b, newVertex], [c, newVertex]);
-        } catch (error) {
-            console.error("Error in subdivideRandomFace:", error);
-            debug.log(`ERROR in subdivideRandomFace: ${error.message}`);
-        }
-    }
-
-    function initMesh() {
-        debug.log("Initializing mesh...");
-        try {
-            vertices.length = 0;
-            vertexAges.length = 0;
-            edges = [];
-            faces = [];
-            iteration = 0;
-            const positions = [
-                [0, 0, 0],
-                [0.1, 0, 0],
-                [0.1, 0.166, 0]
-            ];
-            for (const pos of positions) {
-                vertices.push(new THREE.Vector3(...pos));
-                vertexAges.push(0);
-            }
-            edges = [[0, 1], [1, 2], [2, 0]];
-            faces = [[0, 1, 2]];
-            debug.log(`Created initial mesh with ${vertices.length} vertices, ${faces.length} faces`);
-            updateMesh();
-        } catch (error) {
-            console.error("Error in initMesh:", error);
-            debug.log(`ERROR in initMesh: ${error.message}`);
-        }
-    }
-
-    function updateMesh() {
-        debug.log(`Updating mesh with ${vertices.length} vertices, ${faces.length} faces`);
-        try {
-            if (mesh) scene.remove(mesh);
-            if (edgeLines) scene.remove(edgeLines);
-            const geometry = new THREE.BufferGeometry();
-            const posArray = new Float32Array(faces.length * 9);
-            const colorArray = new Float32Array(faces.length * 9);
-            for (let i = 0; i < faces.length; i++) {
-                const face = faces[i];
-                for (let j = 0; j < 3; j++) {
-                    const vertexIndex = face[j];
-                    if (vertexIndex >= vertices.length) {
-                        console.error(`Invalid vertex index ${vertexIndex} in face ${i}`);
-                        continue;
-                    }
-                    const vertex = vertices[vertexIndex];
-                    const baseIndex = i * 9 + j * 3;
-                    posArray[baseIndex] = vertex.x;
-                    posArray[baseIndex + 1] = vertex.y;
-                    posArray[baseIndex + 2] = vertex.z;
-                    const age = vertexAges[vertexIndex];
-                    const t = Math.min(1, age / Math.max(1, iteration));
-                    const heightFactor = (vertex.y + 1) / 2;
-                    const distanceFromCenter = vertex.length();
-                    colorArray[baseIndex] = 0.2 + 0.8 * (1 - t);
-                    colorArray[baseIndex + 1] = 0.2 + 0.6 * heightFactor;
-                    colorArray[baseIndex + 2] = 0.2 + 0.8 * t + 0.2 * (distanceFromCenter / 5);
-                }
-            }
-            geometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
-            geometry.setAttribute('color', new THREE.BufferAttribute(colorArray, 3));
-            geometry.computeVertexNormals();
-            const material = new THREE.MeshPhongMaterial({
-                vertexColors: true,
-                flatShading: false,
-                side: THREE.DoubleSide
-            });
-            mesh = new THREE.Mesh(geometry, material);
-            scene.add(mesh);
-            const edgeGeometry = new THREE.BufferGeometry();
-            const edgePosArray = new Float32Array(edges.length * 6);
-            for (let i = 0; i < edges.length; i++) {
-                const [a, b] = edges[i];
-                const v1 = vertices[a], v2 = vertices[b];
-                const baseIndex = i * 6;
-                edgePosArray[baseIndex] = v1.x;
-                edgePosArray[baseIndex + 1] = v1.y;
-                edgePosArray[baseIndex + 2] = v1.z;
-                edgePosArray[baseIndex + 3] = v2.x;
-                edgePosArray[baseIndex + 4] = v2.y;
-                edgePosArray[baseIndex + 5] = v2.z;
-            }
-            edgeGeometry.setAttribute('position', new THREE.BufferAttribute(edgePosArray, 3));
-            const edgeMaterial = new THREE.LineBasicMaterial({ color: 0x888888, opacity: 0.3, transparent: true });
-            edgeLines = new THREE.LineSegments(edgeGeometry, edgeMaterial);
-            scene.add(edgeLines);
-            document.getElementById('stats').textContent = `Vertices: ${vertices.length} | Faces: ${faces.length} | Iter: ${iteration}`;
-        } catch (error) {
-            console.error("Error in updateMesh:", error);
-            debug.log(`ERROR in updateMesh: ${error.message}`);
-        }
-    }
-
-    function evolve() {
-        iteration++;
-        debug.log(`Evolving mesh, iteration ${iteration}`);
-        try {
-            relax();
-            optimizeFloorPlates();    // Flatten nearly horizontal floors
-            optimizeCurvedSlopes();     // Remap slopes to accentuate curvature
-            smoothDifferentialGrowth(); // Apply organic smoothing
-            detectAndRefineHighCurvatureAreas();
-            const growthProbability = Math.min(0.95, 1.0 + (iteration / 500));
-            if (Math.random() < growthProbability) {
-                const numSplits = Math.floor(8 + Math.random() * 2);
-                for (let i = 0; i < numSplits; i++) {
-                    splitRandomEdge();
-                }
-                if (Math.random() < 0.5) {
-                    subdivideRandomFace();
-                }
-            }
-            updateMesh();
-        } catch (error) {
-            console.error("Error in evolve:", error);
-            debug.log(`ERROR in evolve: ${error.message}`);
-        }
-    }
-
-
-    function resetMesh() {
-        debug.log("Resetting mesh");
-        initMesh();
-    }
-
-    function animate(time) {
-        requestAnimationFrame(animate);
-        try {
-            if (isRunning && time - lastUpdate > updateInterval) {
-                lastUpdate = time;
-                evolve();
-            }
-            renderer.render(scene, camera);
-        } catch (error) {
-            console.error("Error in animation loop:", error);
-            debug.log(`ERROR in animation loop: ${error.message}`);
-        }
-    }
-
-    // Initialize and start
-    initMesh();
-    debug.log("Starting animation loop");
-    animate(0);
-
+    
+    // Window resize
     window.addEventListener('resize', () => {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
+      this.camera.aspect = window.innerWidth / window.innerHeight;
+      this.camera.updateProjectionMatrix();
+      this.renderer.setSize(window.innerWidth, window.innerHeight);
     });
+  }
 
-} catch (error) {
-    console.error("Error in differential mesh script:", error);
-    debug.log(`ERROR in script: ${error.message}`);
+  // Animation loop
+  animate(time) {
+    requestAnimationFrame(this.animate.bind(this));
+    
+    if (!this.isPaused) {
+      this.frameCounter++;
+      
+      try {
+        // Update mesh
+        this.meshManager.update(time);
+        
+        // Subdivision every 100 frames
+        if (this.frameCounter % 100 === 0 && time - this.lastSubdivideTime > 2000) {
+          if (this.meshManager.subdivideMesh(time)) {
+            this.lastSubdivideTime = time;
+          }
+        }
+        
+        // Reset if too many vertices
+        if (this.frameCounter % 300 === 0 && this.meshManager.vertices.length > 3000) {
+          this.meshManager.createGridMesh(8, 2);
+          this.meshManager.rebuildGeometry();
+        }
+      } catch (error) {
+        console.error("Error in animation loop:", error);
+      }
+    }
+    
+    this.renderer.render(this.scene, this.camera);
+  }
+
+  // Start app
+  start() {
+    this.animate(0);
+  }
 }
+
+// Initialize app
+const app = new App();
+app.start();
