@@ -30,7 +30,13 @@ try {
     const renderer = new THREE.WebGLRenderer({ antialias: true });
 
     renderer.setSize(window.innerWidth, window.innerHeight);
-    document.body.appendChild(renderer.domElement);
+    const container = document.getElementById('canvas-container');
+    if (container) {
+        container.appendChild(renderer.domElement);
+    } else {
+        console.error("Canvas container not found, appending to body");
+        document.body.appendChild(renderer.domElement);
+    }
 
     // Lighting
     scene.add(new THREE.AmbientLight(0x404040));
