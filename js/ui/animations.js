@@ -4,7 +4,7 @@ export function initializeScrollAnimations() {
         // Parallax effect for background elements
         const parallaxElements = document.querySelectorAll('.parallax');
         parallaxElements.forEach(element => {
-            const speed = element.getAttribute('data-speed') || 0.5;
+            const speed = element.getAttribute('data-speed') || 5.5;
             element.style.transform = `translateY(${window.scrollY * speed}px)`;
         });
 
