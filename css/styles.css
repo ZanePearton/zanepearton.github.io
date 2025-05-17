@@ -1318,6 +1318,12 @@ footer {
     }
 }
 
+/* Disasble hero */
+#hero.fade-in {
+  opacity: 1 !important;
+  transform: translateY(0) !important;
+  visibility: visible !important;
+}
 
 /* Canvas container */
 #canvas-container {
