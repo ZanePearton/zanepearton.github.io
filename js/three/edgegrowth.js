@@ -668,67 +668,6 @@ try {
         }
     }
 
-    // --- New Function: Adaptive Smooth --- 
-    // Smooth out only high-curvature regions to create gentle, differential-growth style transitions.
-    function adaptiveSmooth() {
-        const curvatureThreshold = 0.2; // Adjust as needed
-        const highCurvatureVertices = new Set();
-        // Determine curvature for each vertex based on connected face normals.
-        for (let i = 0; i < vertices.length; i++) {
-            let connectedFaces = [];
-            for (let f = 0; f < faces.length; f++) {
-                if (faces[f].includes(i)) connectedFaces.push(f);
-            }
-            if (connectedFaces.length < 2) continue;
-            let normals = [];
-            connectedFaces.forEach(faceIdx => {
-                const face = faces[faceIdx];
-                const [a, b, c] = face;
-                const v1 = vertices[a], v2 = vertices[b], v3 = vertices[c];
-                const normal = new THREE.Vector3().crossVectors(
-                    new THREE.Vector3().subVectors(v2, v1),
-                    new THREE.Vector3().subVectors(v3, v1)
-                ).normalize();
-                normals.push(normal);
-            });
-            let totalAngle = 0, count = 0;
-            for (let j = 0; j < normals.length; j++) {
-                for (let k = j + 1; k < normals.length; k++) {
-                    const dot = normals[j].dot(normals[k]);
-                    const angle = Math.acos(Math.max(-1, Math.min(1, dot)));
-                    totalAngle += angle;
-                    count++;
-                }
-            }
-            const avgAngle = count > 0 ? totalAngle / count : 0;
-            if (avgAngle > curvatureThreshold) {
-                highCurvatureVertices.add(i);
-            }
-        }
-        // Build a neighbor map from edges.
-        const neighborMap = [];
-        for (let i = 0; i < vertices.length; i++) {
-            neighborMap[i] = [];
-        }
-        edges.forEach(edge => {
-            const [a, b] = edge;
-            neighborMap[a].push(b);
-            neighborMap[b].push(a);
-        });
-        // Smooth only the high-curvature vertices.
-        highCurvatureVertices.forEach(i => {
-            const neighbors = neighborMap[i];
-            if (neighbors.length === 0) return;
-            let avgPos = new THREE.Vector3(0, 0, 0);
-            neighbors.forEach(n => { avgPos.add(vertices[n]); });
-            avgPos.divideScalar(neighbors.length);
-            const factor = 0.2; // Move 20% toward neighbor average
-            let delta = new THREE.Vector3().subVectors(avgPos, vertices[i]);
-            vertices[i].add(delta.multiplyScalar(factor));
-        });
-        debug.log(`Adaptive smoothing applied to ${highCurvatureVertices.size} vertices.`);
-        updateMesh();
-    }
 
     function resetMesh() {
         debug.log("Resetting mesh");
