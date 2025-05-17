@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gravity Simulation</title>
+    <title>Flow Field Visualization</title>
     <script type="importmap">
         {
           "imports": {
@@ -17,7 +17,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="../css/styles.css">
     <script type="module" src="../js/ui/main.js"></script>
-    <script type="module" src="../js/three/gravity.js"></script>
+    <script type="module" src="../js/three/flowfields.js"></script>
     <script type="module" src="../js/ui/sidebar.js"></script>
 </head>
 
@@ -54,51 +54,64 @@
                     <i class="fas fa-chevron-right"></i>
                 </button>
                 <div class="controls-inner">
-                    <div class="control-title">Gravity Simulation Controls</div>
+                    <div class="control-title">Flow Field Visualization Controls</div>
                     <div class="control-content">
                         <div class="control-group">
-                            <label for="bodies">Number of Bodies <span class="value-display" id="bodiesValue">50</span></label>
-                            <input type="range" id="bodies" min="10" max="200" value="50" step="10">
+                            <label for="particles">Particles <span class="value-display" id="particlesValue">1000</span></label>
+                            <input type="range" id="particles" min="100" max="5000" value="1000" step="100">
 
-                            <label for="centralMass">Central Mass <span class="value-display" id="centralMassValue">1000</span></label>
-                            <input type="range" id="centralMass" min="100" max="5000" value="1000" step="100">
+                            <label for="noiseScale">Noise Scale <span class="value-display" id="noiseScaleValue">0.1</span></label>
+                            <input type="range" id="noiseScale" min="0.01" max="0.5" value="0.1" step="0.01">
                         </div>
 
                         <div class="control-group">
-                            <label for="gravity">Gravity Constant <span class="value-display" id="gravityValue">0.5</span></label>
-                            <input type="range" id="gravity" min="0.1" max="2.0" value="0.5" step="0.1">
+                            <label for="noiseSpeed">Noise Speed <span class="value-display" id="noiseSpeedValue">0.2</span></label>
+                            <input type="range" id="noiseSpeed" min="0.01" max="1.0" value="0.2" step="0.01">
 
+                            <label for="particleSpeed">Particle Speed <span class="value-display" id="particleSpeedValue">0.3</span></label>
+                            <input type="range" id="particleSpeed" min="0.1" max="2.0" value="0.3" step="0.1">
+                        </div>
+
+                        <div class="control-group">
+                            <label for="particleSize">Particle Size <span class="value-display" id="particleSizeValue">0.5</span></label>
+                            <input type="range" id="particleSize" min="0.1" max="2.0" value="0.5" step="0.1">
+
+                            <label for="turbulence">Turbulence <span class="value-display" id="turbulenceValue">0.5</span></label>
+                            <input type="range" id="turbulence" min="0" max="1.0" value="0.5" step="0.05">
+                        </div>
+
+                        <div class="control-group">
                             <label for="timeScale">Time Scale <span class="value-display" id="timeScaleValue">1.0</span></label>
                             <input type="range" id="timeScale" min="0.1" max="3.0" value="1.0" step="0.1">
+
+                            <label for="colorScheme">Color Scheme</label>
+                            <select id="colorScheme">
+                                <option value="flow">Flow Direction</option>
+                                <option value="position">Position</option>
+                                <option value="age">Age</option>
+                                <option value="noise">Noise Value</option>
+                            </select>
                         </div>
 
                         <div class="control-group">
-                            <label for="colorScheme">Color Scheme</label>
-                            <select id="colorScheme">
-                                <option value="thermal">Thermal</option>
-                                <option value="mass">Mass-based</option>
-                                <option value="velocity">Velocity</option>
-                                <option value="grayscale">Grayscale</option>
-                            </select>
-
-                            <label for="collisionMode">Collision Mode</label>
-                            <select id="collisionMode">
+                            <label for="boundaryMode">Boundary Behavior</label>
+                            <select id="boundaryMode">
+                                <option value="respawn">Respawn</option>
                                 <option value="bounce">Bounce</option>
-                                <option value="merge">Merge</option>
                             </select>
                         </div>
 
                         <div class="control-group">
                             <div class="button-group">
-                                <button id="gridToggle">Toggle Grid</button>
-                                <button id="orbitsToggle">Toggle Orbits</button>
+                                <button id="trailsBtn">Hide Trails</button>
+                                <button id="flowDimBtn">3D Flow</button>
+                                <button id="seedBtn">New Noise Seed</button>
                                 <button id="pauseBtn">Pause</button>
-                                <button id="labelsBtn">Show Labels</button>
                                 <button id="resetBtn">Reset</button>
                             </div>
                         </div>
                         
-                        <div id="stats">Bodies: 50 | Iterations: 0</div>
+                        <div id="stats">Particles: 1000 | Iterations: 0</div>
                     </div>
                 </div>
             </div>
@@ -172,6 +185,8 @@
             <p class="copyright">© 2025 Zane Pearton. All rights reserved.</p>
         </div>
     </footer>
+
+
 </body>
 
 </html>
