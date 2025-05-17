@@ -1,12 +1,4 @@
-// Initialize when document is ready
-document.addEventListener('DOMContentLoaded', function() {
-    init();
-});
-
-// Call init if document is already loaded
-if (document.readyState === 'complete' || document.readyState === 'interactive') {
-    init();
-}// Import necessary modules
+// Import necessary modules
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
@@ -36,7 +28,6 @@ let config = {
 };
 
 // Helper function for Perlin noise (simplified implementation)
-// In a real implementation, you would import a noise library
 class PerlinNoise {
     constructor() {
         this.gradients = {};
@@ -669,6 +660,118 @@ function toggleFlowDimension() {
     }
 }
 
+// Setup event listeners for UI controls
+function setupEventListeners() {
+    // Button event listeners
+    const pauseBtn = document.getElementById('pauseBtn');
+    if (pauseBtn) {
+        pauseBtn.addEventListener('click', togglePause);
+    }
+    
+    const resetBtn = document.getElementById('resetBtn');
+    if (resetBtn) {
+        resetBtn.addEventListener('click', resetSimulation);
+    }
+    
+    const trailsBtn = document.getElementById('trailsBtn');
+    if (trailsBtn) {
+        trailsBtn.addEventListener('click', toggleTrails);
+    }
+    
+    const flowDimBtn = document.getElementById('flowDimBtn');
+    if (flowDimBtn) {
+        flowDimBtn.addEventListener('click', toggleFlowDimension);
+    }
+    
+    const seedBtn = document.getElementById('seedBtn');
+    if (seedBtn) {
+        seedBtn.addEventListener('click', () => {
+            perlin.seed();
+        });
+    }
+    
+    // Slider event listeners
+    const particlesSlider = document.getElementById('particles');
+    if (particlesSlider) {
+        particlesSlider.addEventListener('input', function() {
+            config.numParticles = parseInt(this.value);
+            document.getElementById('particlesValue').textContent = config.numParticles;
+        });
+        
+        particlesSlider.addEventListener('change', function() {
+            resetSimulation();
+        });
+    }
+    
+    const noiseScaleSlider = document.getElementById('noiseScale');
+    if (noiseScaleSlider) {
+        noiseScaleSlider.addEventListener('input', function() {
+            config.noiseScale = parseFloat(this.value);
+            document.getElementById('noiseScaleValue').textContent = config.noiseScale.toFixed(2);
+        });
+    }
+    
+    const noiseSpeedSlider = document.getElementById('noiseSpeed');
+    if (noiseSpeedSlider) {
+        noiseSpeedSlider.addEventListener('input', function() {
+            config.noiseSpeed = parseFloat(this.value);
+            document.getElementById('noiseSpeedValue').textContent = config.noiseSpeed.toFixed(2);
+        });
+    }
+    
+    const particleSpeedSlider = document.getElementById('particleSpeed');
+    if (particleSpeedSlider) {
+        particleSpeedSlider.addEventListener('input', function() {
+            config.particleSpeed = parseFloat(this.value);
+            document.getElementById('particleSpeedValue').textContent = config.particleSpeed.toFixed(1);
+        });
+    }
+    
+    const particleSizeSlider = document.getElementById('particleSize');
+    if (particleSizeSlider) {
+        particleSizeSlider.addEventListener('input', function() {
+            config.particleSize = parseFloat(this.value);
+            document.getElementById('particleSizeValue').textContent = config.particleSize.toFixed(1);
+        });
+        
+        particleSizeSlider.addEventListener('change', function() {
+            resetSimulation();
+        });
+    }
+    
+    const turbulenceSlider = document.getElementById('turbulence');
+    if (turbulenceSlider) {
+        turbulenceSlider.addEventListener('input', function() {
+            config.turbulence = parseFloat(this.value);
+            document.getElementById('turbulenceValue').textContent = config.turbulence.toFixed(2);
+        });
+    }
+    
+    const timeScaleSlider = document.getElementById('timeScale');
+    if (timeScaleSlider) {
+        timeScaleSlider.addEventListener('input', function() {
+            config.timeScale = parseFloat(this.value);
+            document.getElementById('timeScaleValue').textContent = config.timeScale.toFixed(1);
+        });
+    }
+    
+    // Dropdown event listeners
+    const colorSchemeSelect = document.getElementById('colorScheme');
+    if (colorSchemeSelect) {
+        colorSchemeSelect.addEventListener('change', function() {
+            config.colorScheme = this.value;
+            updateParticleMaterials();
+        });
+    }
+    
+    const boundarySelect = document.getElementById('boundaryMode');
+    if (boundarySelect) {
+        boundarySelect.addEventListener('change', function() {
+            config.respawnAtBoundary = this.value === 'respawn';
+        });
+    }
+}
+
 // Create UI elements programmatically if not in HTML
 function createUI() {
     // Create UI container
@@ -840,4 +943,14 @@ function createUI() {
     boundaryContainer.appendChild(boundaryLabel);
     boundaryContainer.appendChild(boundarySelect);
     slidersContainer.appendChild(boundaryContainer);
+}
+
+// Initialize when document is ready
+document.addEventListener('DOMContentLoaded', function() {
+    init();
+});
+
+// Call init if document is already loaded
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    init();
 }
