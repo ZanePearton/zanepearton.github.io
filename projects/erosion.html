@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Erosion Simulation - Three.js</title>
+    <script type="importmap">
+        {
+          "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.155.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.155.0/examples/jsm/"
+          }
+        }
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="../css/styles.css">
+    <script type="module" src="../js/ui/main.js"></script>
+    <script type="module" src="../js/three/erosion.js"></script>
+    <script type="module" src="../js/ui/sidebar.js"></script>
+</head>
+
+<body>
+    <section class="hero" id="hero">
+        <div class="hero-content">
+            <!-- Canvas Container -->
+            <div id="canvas-container"></div>
+
+            <!-- Controls Panel -->
+            <div id="controls">
+                <button id="minimizeControls" title="Minimize/Maximize Panel">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+                <div class="controls-inner">
+                    <div class="control-title">Erosion Simulation Controls</div>
+                    <div class="control-content">
+                        <div class="control-group">
+                            <label for="rainIntensity">Rain Intensity <span class="value-display" id="rainIntensityValue">5</span></label>
+                            <input type="range" id="rainIntensity" min="1" max="20" value="5" step="1">
+
+                            <label for="erosionRate">Erosion Rate <span class="value-display" id="erosionRateValue">0.3</span></label>
+                            <input type="range" id="erosionRate" min="0.1" max="1.0" value="0.3" step="0.1">
+
+                            <label for="depositionRate">Deposition Rate <span class="value-display" id="depositionRateValue">0.1</span></label>
+                            <input type="range" id="depositionRate" min="0.05" max="0.5" value="0.1" step="0.05">
+                        </div>
+
+                        <div class="control-group">
+                            <label for="colorScheme">Color Scheme</label>
+                            <select id="colorScheme">
+                                <option value="gradient" selected>Gradient</option>
+                                <option value="rainbow">Rainbow</option>
+                                <option value="speed">Speed</option>
+                                <option value="height">Height Map</option>
+                            </select>
+                            <button id="gridToggle">Toggle Grid</button>
+                        </div>
+
+                        <div class="control-group">
+                            <h4>Simulation Controls</h4>
+                            <button id="resetBtn">Reset Terrain</button>
+                            <button id="pauseBtn">Pause</button>
+                            <button id="toggleFlowBtn">Toggle Flow Vectors</button>
+                            <button id="resetWaterBtn">Clear Water</button>
+                        </div>
+
+                        <div class="control-group">
+                            <label for="terrainHeightSlider">Terrain Height <span class="value-display" id="terrainHeightValue">10</span></label>
+                            <input type="range" id="terrainHeightSlider" min="5" max="20" value="10" step="1">
+                            
+                            <label for="boundaryRadiusSlider">Boundary Size <span class="value-display" id="boundaryRadiusValue">15</span></label>
+                            <input type="range" id="boundaryRadiusSlider" min="10" max="30" value="15" step="1">
+                        </div>
+
+                        <div class="control-group">
+                            <div id="stats">Particles: 0 | Active: 0</div>
+                            <div id="debug"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section class="section contact" id="contact">
+        <div class="container">
+            <div class="section-title">
+                <h2>Get In Touch</h2>
+                <p>Interested in working together? Let's start a conversation.</p>
+            </div>
+            <div class="contact-container">
+                <div class="contact-info">
+                    <h3>Contact Information</h3>
+                    <div class="contact-method">
+                        <h4>Professional Profile</h4>
+                        <a
+                            href="https://www.linkedin.com/in/zane-pearton?utm_source=share&utm_campaign=share_via&utm_content=profile&utm_medium=ios_app">LinkedIn:
+                            ZanePearton</a>
+                    </div>
+                    <div class="contact-method">
+                        <h4>Based In</h4>
+                        <p>Australia (with EU citizenship)</p>
+                    </div>
+                    <div class="socials">
+                        <a href="https://github.com/ZanePearton" class="social-link"><i class="fab fa-github"></i></a>
+                        <a href="https://www.linkedin.com/in/zane-pearton?utm_source=share&utm_campaign=share_via&utm_content=profile&utm_medium=ios_app"
+                            class="social-link"><i class="fab fa-linkedin-in"></i></a>
+                        <a href="https://dev.to/zanepearton" class="social-link"><i class="fab fa-dev"></i></a>
+                        <a href="https://linktr.ee/zanepearton" class="social-link"><i class="fas fa-link"></i></a>
+                        <a href="https://linktr.ee/zanepearton" class="social-link"><i class="fas fa-link"></i></a>
+                    </div>
+                </div>
+                <div class="contact-form">
+                    <form id="contactForm" action="https://formspree.io/f/zanefrederickandreas@gmail.com" method="POST">
+                        <div class="form-group">
+                            <label for="name" class="form-label">Name</label>
+                            <input type="text" id="name" name="name" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="email" class="form-label">Email</label>
+                            <input type="email" id="email" name="email" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="subject" class="form-label">Subject</label>
+                            <input type="text" id="subject" name="subject" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="message" class="form-label">Message</label>
+                            <textarea id="message" name="message" class="form-control" required></textarea>
+                        </div>
+                        <button type="submit" class="form-submit">Send Message</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <div class="footer-links">
+                <a href="#hero" class="footer-link">Home</a>
+                <a href="#about" class="footer-link">About</a>
+                <a href="#projects" class="footer-link">Projects</a>
+                <a href="#certifications" class="footer-link">Certifications</a>
+                <a href="#contact" class="footer-link">Contact</a>
+            </div>
+            <p class="copyright">© 2025 Zane Pearton. All rights reserved.</p>
+        </div>
+    </footer>
+</body>
+</html>
