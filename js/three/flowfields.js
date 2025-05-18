@@ -5,443 +5,191 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 // Initialize variables
 let renderer, scene, camera, controls;
 let particles = [];
-let trailsGroup;
+let flowField = [];
+let gridHelper, axisHelper;
 let clock = new THREE.Clock();
-let noiseOffset = 0;
 
 // Configuration parameters
-let config = {
-    numParticles: 1000,        // Number of particles
-    noiseScale: 0.1,           // Scale of Perlin noise
-    noiseSpeed: 0.2,           // Speed of noise evolution
-    particleSpeed: 0.3,        // Base speed of particles
-    boundaryRadius: 100,       // Size of the boundary sphere
-    colorScheme: 'flow',       // Default color scheme
-    showTrails: true,          // Whether to show particle trails
-    paused: false,             // Whether the simulation is paused
-    useZFlow: true,            // Use 3D (true) or 2D (false) flow
-    particleSize: 0.5,         // Size of particles
-    maxTrailPoints: 100,       // Maximum trail points per particle
-    timeScale: 1.0,            // Simulation speed multiplier
-    respawnAtBoundary: true,   // Respawn particles at boundary instead of bouncing
-    turbulence: 0.5            // Amount of turbulence/randomness
+const config = {
+    numParticles: 1000,      // Number of particles
+    fieldSize: 20,           // Size of the flow field
+    fieldResolution: 10,     // Resolution of the flow field
+    particleSpeed: 0.2,      // Base speed of particles
+    fieldStrength: 1.0,      // Strength of the flow field
+    noiseScale: 0.1,         // Scale of the noise function
+    noiseSpeed: 0.2,         // Speed of noise animation
+    showFieldVectors: false, // Show flow field vectors
+    colorScheme: 'gradient', // Color scheme for particles
+    maxSpeed: 0.5,           // Maximum particle speed
+    boundaryRadius: 15,      // Size of the boundary sphere
+    showGrid: true,          // Show grid
+    paused: false,           // Pause simulation
+    particleSize: 0.2,       // Size of particles
+    fadeAmount: 0.05,        // Fade amount for trail effect
 };
 
-// Helper function for Perlin noise (simplified implementation)
-class PerlinNoise {
-    constructor() {
-        this.gradients = {};
-        this.memory = {};
-    }
-    
-    seed() {
-        this.gradients = {};
-        this.memory = {};
-    }
-    
-    dot(ix, iy, iz, x, y, z) {
-        // Create a random gradient vector
-        const key = ix + "," + iy + "," + iz;
-        let gradient;
-        
-        if (this.gradients[key]) {
-            gradient = this.gradients[key];
-        } else {
-            // Random gradient
-            const theta = Math.random() * Math.PI * 2;
-            const phi = Math.random() * Math.PI;
-            
-            const x = Math.sin(phi) * Math.cos(theta);
-            const y = Math.sin(phi) * Math.sin(theta);
-            const z = Math.cos(phi);
-            
-            gradient = [x, y, z];
-            this.gradients[key] = gradient;
-        }
-        
-        // Calculate dot product
-        return gradient[0] * x + gradient[1] * y + gradient[2] * z;
-    }
-    
-    smootherstep(t) {
-        return t * t * t * (t * (t * 6 - 15) + 10);
-    }
-    
-    lerp(a, b, t) {
-        return a + t * (b - a);
-    }
-    
-    noise3D(x, y, z) {
-        // Cache check
-        const key = x + "," + y + "," + z;
-        if (this.memory[key]) return this.memory[key];
-        
-        // Calculate grid coordinates
-        const ix = Math.floor(x);
-        const iy = Math.floor(y);
-        const iz = Math.floor(z);
-        
-        // Relative coordinates
-        const rx = x - ix;
-        const ry = y - iy;
-        const rz = z - iz;
-        
-        // Calculate dot products for all corners
-        const n000 = this.dot(ix, iy, iz, rx, ry, rz);
-        const n001 = this.dot(ix, iy, iz + 1, rx, ry, rz - 1);
-        const n010 = this.dot(ix, iy + 1, iz, rx, ry - 1, rz);
-        const n011 = this.dot(ix, iy + 1, iz + 1, rx, ry - 1, rz - 1);
-        const n100 = this.dot(ix + 1, iy, iz, rx - 1, ry, rz);
-        const n101 = this.dot(ix + 1, iy, iz + 1, rx - 1, ry, rz - 1);
-        const n110 = this.dot(ix + 1, iy + 1, iz, rx - 1, ry - 1, rz);
-        const n111 = this.dot(ix + 1, iy + 1, iz + 1, rx - 1, ry - 1, rz - 1);
-        
-        // Smooth interpolation
-        const wx = this.smootherstep(rx);
-        const wy = this.smootherstep(ry);
-        const wz = this.smootherstep(rz);
-        
-        // Interpolate along x
-        const nx00 = this.lerp(n000, n100, wx);
-        const nx01 = this.lerp(n001, n101, wx);
-        const nx10 = this.lerp(n010, n110, wx);
-        const nx11 = this.lerp(n011, n111, wx);
-        
-        // Interpolate along y
-        const nxy0 = this.lerp(nx00, nx10, wy);
-        const nxy1 = this.lerp(nx01, nx11, wy);
-        
-        // Interpolate along z
-        const nxyz = this.lerp(nxy0, nxy1, wz);
-        
-        // Cache and return result
-        this.memory[key] = nxyz;
-        return nxyz;
-    }
-    
-    // Fractal/Turbulence noise
-    fractal3D(x, y, z, octaves, persistence) {
-        let total = 0;
-        let frequency = 1;
-        let amplitude = 1;
-        let maxValue = 0;
-        
-        for (let i = 0; i < octaves; i++) {
-            total += this.noise3D(x * frequency, y * frequency, z * frequency) * amplitude;
-            maxValue += amplitude;
-            amplitude *= persistence;
-            frequency *= 2;
-        }
-        
-        // Return normalized value
-        return total / maxValue;
-    }
-}
-
-// Initialize noise generator
-const perlin = new PerlinNoise();
-perlin.seed();
-
-// FlowParticle class
-class FlowParticle {
-    constructor(position, size) {
+// Particle class
+class Particle {
+    constructor(position) {
         // Create geometry and material for the particle
-        const geometry = new THREE.SphereGeometry(size, 8, 6);
+        const geometry = new THREE.SphereGeometry(config.particleSize, 8, 8);
         
-        // Material will be set based on config
-        this.mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ color: 0xffffff }));
+        // Create material with transparency for trail effect
+        this.mesh = new THREE.Mesh(
+            geometry, 
+            new THREE.MeshBasicMaterial({ 
+                color: 0xffffff,
+                transparent: true,
+                opacity: 0.8
+            })
+        );
         
         // Set initial position
         this.mesh.position.copy(position);
         
-        // Set properties
-        this.velocity = new THREE.Vector3(0, 0, 0);
-        this.acceleration = new THREE.Vector3(0, 0, 0);
-        this.age = 0;
-        this.lifetime = Math.random() * 5 + 5; // Random lifetime
-        this.originalSize = size;
+        // Set initial velocity (will be updated by flow field)
+        this.velocity = new THREE.Vector3(
+            (Math.random() - 0.5) * 0.1,
+            (Math.random() - 0.5) * 0.1,
+            (Math.random() - 0.5) * 0.1
+        );
         
-        // Initialize trails if enabled
-        if (config.showTrails) {
-            this.initTrail();
-        }
+        // Trail history
+        this.history = [];
         
         // Add to scene
         scene.add(this.mesh);
     }
     
-    // Initialize particle trail
-    initTrail() {
-        // Create line material
-        const trailMaterial = new THREE.LineBasicMaterial({
-            color: this.mesh.material.color,
-            transparent: true,
-            opacity: 0.5,
-            linewidth: 1
-        });
-        
-        // Create trail geometry with initial point
-        const trailGeometry = new THREE.BufferGeometry();
-        this.trailPositions = new Float32Array(config.maxTrailPoints * 3);
-        
-        // Initialize with current position
-        this.trailPositions[0] = this.mesh.position.x;
-        this.trailPositions[1] = this.mesh.position.y;
-        this.trailPositions[2] = this.mesh.position.z;
-        
-        trailGeometry.setAttribute('position', new THREE.BufferAttribute(this.trailPositions, 3));
-        trailGeometry.setDrawRange(0, 1);
-        
-        this.trail = new THREE.Line(trailGeometry, trailMaterial);
-        this.trailIndex = 1;
-        trailsGroup.add(this.trail);
-    }
-    
-    // Update particle position and trails
+    // Update particle position based on flow field
     update(delta) {
         if (config.paused) return;
         
-        // Increase age
-        this.age += delta * config.timeScale;
+        // Get flow field vector for current position
+        const flowVector = this.getFlowVector();
         
-        // Get position for perlin noise sampling
-        const pos = this.mesh.position;
-        
-        // Calculate flow direction using Perlin noise
-        const scaledX = pos.x * config.noiseScale;
-        const scaledY = pos.y * config.noiseScale;
-        const scaledZ = pos.z * config.noiseScale;
-        // Add time dimension to animate the flow field
-        const timeOffset = noiseOffset * config.noiseSpeed;
-        
-        // Get flow direction from noise
-        let flowX, flowY, flowZ;
-        
-        if (config.useZFlow) {
-            // Full 3D flow
-            flowX = perlin.fractal3D(scaledX, scaledY, scaledZ + timeOffset, 4, 0.5) * 2 - 1;
-            flowY = perlin.fractal3D(scaledX + 100, scaledY, scaledZ + timeOffset, 4, 0.5) * 2 - 1;
-            flowZ = perlin.fractal3D(scaledX, scaledY + 100, scaledZ + timeOffset, 4, 0.5) * 2 - 1;
-        } else {
-            // 2D flow (consistent Z direction)
-            flowX = perlin.fractal3D(scaledX, scaledY, timeOffset, 4, 0.5) * 2 - 1;
-            flowY = perlin.fractal3D(scaledX + 100, scaledY, timeOffset, 4, 0.5) * 2 - 1;
-            flowZ = perlin.fractal3D(scaledX, scaledY + 100, timeOffset, 4, 0.5) * 0.5 - 0.25; // Reduced vertical flow
-        }
-        
-        // Add some turbulence/randomness
-        if (config.turbulence > 0) {
-            flowX += (Math.random() * 2 - 1) * config.turbulence * 0.1;
-            flowY += (Math.random() * 2 - 1) * config.turbulence * 0.1;
-            flowZ += (Math.random() * 2 - 1) * config.turbulence * 0.1;
-        }
-        
-        // Set acceleration based on flow field
-        this.acceleration.set(flowX, flowY, flowZ);
-        
-        // Update velocity: v = v + a*t
-        this.velocity.add(this.acceleration.multiplyScalar(delta * config.timeScale));
+        // Apply flow vector to velocity
+        this.velocity.add(flowVector.multiplyScalar(config.fieldStrength * delta));
         
         // Limit speed
         const speed = this.velocity.length();
-        const maxSpeed = config.particleSpeed;
-        if (speed > maxSpeed) {
-            this.velocity.multiplyScalar(maxSpeed / speed);
-        }
-
-        // Update position: p = p + v*t
-        this.mesh.position.add(this.velocity.clone().multiplyScalar(delta * config.timeScale));
-
-        // Update trails
-        this.updateTrail();
-        
-        // Check boundary
-        this.checkBoundary();
-        
-        // Update trail if enabled
-        if (config.showTrails && this.trail) {
-            this.updateTrail();
+        if (speed > config.maxSpeed) {
+            this.velocity.multiplyScalar(config.maxSpeed / speed);
         }
         
-        // Fade out particle as it ages
-        if (this.age > this.lifetime * 0.7) {
-            const fadeRatio = 1 - ((this.age - this.lifetime * 0.7) / (this.lifetime * 0.3));
-            this.mesh.material.opacity = fadeRatio;
-            if (this.trail) {
-                this.trail.material.opacity = fadeRatio * 0.5;
-            }
-        }
+        // Update position
+        this.mesh.position.add(this.velocity.clone().multiplyScalar(delta * 60));
         
-        // Respawn if exceeding lifetime
-        if (this.age > this.lifetime) {
-            this.respawn();
-        }
+        // Check if particle is outside boundary
+        this.enforceBoundary();
     }
     
-    // Check if particle is outside boundary
-    checkBoundary() {
+    // Get flow vector from flow field
+    getFlowVector() {
+        // Get normalized position within flow field [-1, 1]
+        const nx = (this.mesh.position.x / config.fieldSize) + 0.5;
+        const ny = (this.mesh.position.y / config.fieldSize) + 0.5;
+        const nz = (this.mesh.position.z / config.fieldSize) + 0.5;
+        
+        // Calculate flow field indices
+        const size = config.fieldResolution;
+        const x = Math.floor(THREE.MathUtils.clamp(nx * size, 0, size - 1));
+        const y = Math.floor(THREE.MathUtils.clamp(ny * size, 0, size - 1));
+        const z = Math.floor(THREE.MathUtils.clamp(nz * size, 0, size - 1));
+        
+        // Get flow vector (or return zero vector if out of bounds)
+        const index = x + y * size + z * size * size;
+        return (flowField[index] || new THREE.Vector3()).clone();
+    }
+    
+    // Keep particles within boundary sphere
+    enforceBoundary() {
         const distanceFromCenter = this.mesh.position.length();
-        
         if (distanceFromCenter > config.boundaryRadius) {
-            if (config.respawnAtBoundary) {
-                this.respawn();
-            } else {
-                // Bounce off boundary
-                const toCenter = new THREE.Vector3().subVectors(
-                    new THREE.Vector3(0, 0, 0),
-                    this.mesh.position
-                );
-                
-                toCenter.normalize();
-                
-                // Reflect velocity
-                const dot = this.velocity.dot(toCenter);
-                this.velocity.sub(toCenter.multiplyScalar(2 * dot));
-                
-                // Move inside boundary
-                this.mesh.position.normalize().multiplyScalar(config.boundaryRadius * 0.95);
-            }
+            // Teleport to opposite side with slight offset to avoid getting stuck
+            this.mesh.position.multiplyScalar(-0.9);
+            
+            // Add small random velocity
+            this.velocity.add(new THREE.Vector3(
+                (Math.random() - 0.5) * 0.1,
+                (Math.random() - 0.5) * 0.1,
+                (Math.random() - 0.5) * 0.1
+            ));
         }
     }
     
-    // Update trail visualization
-    updateTrail() {
-        if (this.trailIndex >= config.maxTrailPoints) {
-            // Reset trail if full
-            this.trailIndex = 0;
-        }
-        
-        // Add current position to trail
-        const baseIndex = this.trailIndex * 3;
-        this.trailPositions[baseIndex] = this.mesh.position.x;
-        this.trailPositions[baseIndex + 1] = this.mesh.position.y;
-        this.trailPositions[baseIndex + 2] = this.mesh.position.z;
-        
-        // Update draw range
-        const drawCount = Math.min(this.trailIndex + 1, config.maxTrailPoints);
-        this.trail.geometry.setDrawRange(0, drawCount);
-        this.trail.geometry.attributes.position.needsUpdate = true;
-        
-        this.trailIndex++;
-    }
-    
-    // Respawn particle at a new random position
-    respawn() {
-        // Random position within sphere
-        const theta = Math.random() * Math.PI * 2;
-        const phi = Math.acos(2 * Math.random() - 1);
-        const r = config.boundaryRadius * Math.cbrt(Math.random()) * 0.8; // Cube root for uniform distribution
-        
-        const x = r * Math.sin(phi) * Math.cos(theta);
-        const y = r * Math.sin(phi) * Math.sin(theta);
-        const z = r * Math.cos(phi);
-        
-        this.mesh.position.set(x, y, z);
-        this.velocity.set(0, 0, 0);
-        this.age = 0;
-        this.lifetime = Math.random() * 5 + 5;
-        
-        // Reset opacity
-        this.mesh.material.opacity = 1.0;
-        if (this.trail) {
-            this.trail.material.opacity = 0.5;
-        }
-        
-        // Reset trail
-        if (this.trail) {
-            for (let i = 0; i < config.maxTrailPoints; i++) {
-                const idx = i * 3;
-                this.trailPositions[idx] = x;
-                this.trailPositions[idx + 1] = y;
-                this.trailPositions[idx + 2] = z;
-            }
-            this.trailIndex = 1;
-            this.trail.geometry.attributes.position.needsUpdate = true;
-        }
-        
-        // Update color based on new position
-        this.updateMaterial(config.colorScheme);
-    }
-    
-    // Update the particle's material based on color scheme
-    updateMaterial(colorscheme) {
+    // Update particle material based on color scheme
+    updateMaterial(colorScheme, index, total) {
         let color;
         
-        switch (colorscheme) {
-            case 'flow':
-                // Color based on flow direction (velocity)
-                const vx = this.velocity.x / config.particleSpeed * 0.5 + 0.5;
-                const vy = this.velocity.y / config.particleSpeed * 0.5 + 0.5;
-                const vz = this.velocity.z / config.particleSpeed * 0.5 + 0.5;
-                color = new THREE.Color(vx, vy, vz);
+        switch (colorScheme) {
+            case 'rainbow':
+                // Distribute colors evenly across the rainbow
+                color = new THREE.Color().setHSL(index / total, 1, 0.5);
                 break;
                 
-            case 'position':
-                // Color based on position in space
-                const px = (this.mesh.position.x / config.boundaryRadius * 0.5 + 0.5);
-                const py = (this.mesh.position.y / config.boundaryRadius * 0.5 + 0.5);
-                const pz = (this.mesh.position.z / config.boundaryRadius * 0.5 + 0.5);
-                color = new THREE.Color(px, py, pz);
+            case 'gradient':
+                // Gradient based on height (y-position)
+                const height = (this.mesh.position.y + config.boundaryRadius) / (config.boundaryRadius * 2);
+                color = new THREE.Color(0xff9500).lerp(new THREE.Color(0xaf52de), height);
                 break;
                 
-            case 'age':
-                // Color based on particle age
-                const ageRatio = this.age / this.lifetime;
-                if (ageRatio < 0.33) {
-                    color = new THREE.Color(0x0088ff).lerp(new THREE.Color(0x00ffff), ageRatio * 3);
-                } else if (ageRatio < 0.66) {
-                    color = new THREE.Color(0x00ffff).lerp(new THREE.Color(0xffff00), (ageRatio - 0.33) * 3);
-                } else {
-                    color = new THREE.Color(0xffff00).lerp(new THREE.Color(0xff0088), (ageRatio - 0.66) * 3);
-                }
-                break;
-                
-            case 'noise':
-                // Color based on noise value at position
-                const noiseVal = (perlin.fractal3D(
-                    this.mesh.position.x * config.noiseScale * 2,
-                    this.mesh.position.y * config.noiseScale * 2,
-                    this.mesh.position.z * config.noiseScale * 2,
-                    3, 0.5
-                ) * 0.5 + 0.5);
-                
-                if (noiseVal < 0.33) {
-                    color = new THREE.Color(0x0000ff).lerp(new THREE.Color(0x00ffff), noiseVal * 3);
-                } else if (noiseVal < 0.66) {
-                    color = new THREE.Color(0x00ffff).lerp(new THREE.Color(0xffff00), (noiseVal - 0.33) * 3);
-                } else {
-                    color = new THREE.Color(0xffff00).lerp(new THREE.Color(0xff0000), (noiseVal - 0.66) * 3);
-                }
+            case 'speed':
+                // Color based on particle speed
+                const speed = this.velocity.length() / config.maxSpeed;
+                color = new THREE.Color(0x0000ff).lerp(new THREE.Color(0xff0000), speed);
                 break;
                 
             default:
-                // Default color - magenta to cyan gradient
-                color = new THREE.Color(0xff00ff).lerp(
-                    new THREE.Color(0x00ffff),
-                    Math.random()
-                );
+                color = new THREE.Color(0x0088ff);
         }
         
-        // Apply the color
-        this.mesh.material.color.copy(color);
-        
-        // Update trail color if it exists
-        if (this.trail) {
-            this.trail.material.color.copy(color);
-        }
+        this.mesh.material.color = color;
     }
     
-    // Remove particle and associated objects
+    // Remove particle from scene
     dispose() {
         scene.remove(this.mesh);
-        this.mesh.geometry.dispose();
-        this.mesh.material.dispose();
+        if (this.mesh.geometry) this.mesh.geometry.dispose();
+        if (this.mesh.material) this.mesh.material.dispose();
+    }
+}
+
+// Flow vector visualization
+class FlowVector {
+    constructor(position, direction) {
+        // Create arrow helper to visualize flow direction
+        const length = direction.length() * 2;
+        this.arrow = new THREE.ArrowHelper(
+            direction.clone().normalize(),
+            position,
+            length,
+            0xffff00,
+            0.3,
+            0.2
+        );
         
-        if (this.trail) {
-            trailsGroup.remove(this.trail);
-            this.trail.geometry.dispose();
-            this.trail.material.dispose();
-        }
+        this.position = position.clone();
+        this.direction = direction.clone();
+        
+        // Add to scene
+        scene.add(this.arrow);
+    }
+    
+    // Update arrow direction
+    update(direction) {
+        this.direction.copy(direction);
+        this.arrow.setDirection(direction.normalize());
+        this.arrow.setLength(
+            direction.length() * 2,
+            0.3,
+            0.2
+        );
+    }
+    
+    // Remove from scene
+    dispose() {
+        scene.remove(this.arrow);
     }
 }
 
@@ -450,43 +198,44 @@ function init() {
     // Setup renderer
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setSize(window.innerWidth, window.innerHeight);
     
     const container = document.getElementById('canvas-container');
     if (container) {
         container.appendChild(renderer.domElement);
-        renderer.setSize(container.clientWidth, container.clientHeight);
     } else {
-        console.error("Canvas container not found, appending to body");
         document.body.appendChild(renderer.domElement);
-        renderer.setSize(window.innerWidth, window.innerHeight);
     }
     
-    // Setup scene with background color
+    // Check if dark mode is active
+    const isDarkMode = document.body.classList.contains('dark-mode');
+    
+    // Setup scene with appropriate background color
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x000814);
+    scene.background = new THREE.Color(isDarkMode ? 0x121212 : 0xffffff);
     
-    // Create group for trails
-    trailsGroup = new THREE.Group();
-    scene.add(trailsGroup);
-    
-    // Add grid helper
-    const gridHelper = new THREE.GridHelper(config.boundaryRadius * 2, 20, 0x222222, 0x111111);
+    // Create and add a grid helper
+    gridHelper = new THREE.GridHelper(30, 30);
     scene.add(gridHelper);
     
+    // Add axis helper
+    axisHelper = new THREE.AxesHelper(10);
+    scene.add(axisHelper);
+    
     // Add boundary sphere (transparent)
-    const boundaryGeometry = new THREE.SphereGeometry(config.boundaryRadius, 32, 16);
+    const boundaryGeometry = new THREE.SphereGeometry(config.boundaryRadius, 32, 32);
     const boundaryMaterial = new THREE.MeshBasicMaterial({
-        color: 0x222222,
+        color: 0x888888,
         transparent: true,
-        opacity: 0.05,
+        opacity: 0.1,
         wireframe: true
     });
     const boundarySphere = new THREE.Mesh(boundaryGeometry, boundaryMaterial);
     scene.add(boundarySphere);
     
     // Setup camera
-    camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 2000);
-    camera.position.set(config.boundaryRadius * 1.5, config.boundaryRadius, config.boundaryRadius * 1.5);
+    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(25, 25, 25);
     camera.lookAt(0, 0, 0);
     
     // Setup controls
@@ -495,19 +244,17 @@ function init() {
     controls.dampingFactor = 0.1;
     
     // Add lighting
-    scene.add(new THREE.AmbientLight(0xffffff, 0.3));
+    scene.add(new THREE.AmbientLight(0xffffff, 0.6));
     
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.7);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
     directionalLight.position.set(1, 1, 1);
     scene.add(directionalLight);
     
+    // Generate flow field
+    generateFlowField();
+    
     // Create particles
     createParticles();
-    
-    // Setup event listeners if UI is not manually created in HTML
-    if (!document.getElementById('resetBtn')) {
-        createUI();
-    }
     
     // Setup event listeners
     setupEventListeners();
@@ -518,78 +265,166 @@ function init() {
     // Start animation loop
     animate();
     
-    // Update statistics
-    updateStats();
-    
-    console.log("Perlin flow field simulation initialized");
+    console.log("Flow field visualization initialized");
 }
 
-// Toggle trails
-function toggleTrails() {
-    config.showTrails = !config.showTrails;
-    trailsGroup.visible = config.showTrails;
+// Generate flow field vectors
+function generateFlowField() {
+    // Clear existing flow field
+    flowField = [];
     
-    // Regenerate trails if turning on
-    if (config.showTrails) {
-        particles.forEach(particle => {
-            if (!particle.trail) {
-                particle.initTrail();
+    // Get current time for animated flow field
+    const time = clock.getElapsedTime() * config.noiseSpeed;
+    
+    // Generate flow field grid
+    const size = config.fieldResolution;
+    
+    for (let z = 0; z < size; z++) {
+        for (let y = 0; y < size; y++) {
+            for (let x = 0; x < size; x++) {
+                // Normalize coordinates to [-1, 1]
+                const nx = (x / size) * 2 - 1;
+                const ny = (y / size) * 2 - 1;
+                const nz = (z / size) * 2 - 1;
+                
+                // Calculate flow field vector
+                // Using a curl noise function for more interesting flow
+                
+                // Simplified curl noise (based on sine functions)
+                const scale = config.noiseScale;
+                
+                // Use sine functions to create a vector field
+                const vx = Math.sin(ny * scale + time) * Math.cos(nz * scale + time);
+                const vy = Math.sin(nz * scale + time) * Math.cos(nx * scale + time);
+                const vz = Math.sin(nx * scale + time) * Math.cos(ny * scale + time);
+                
+                // Create vector and add to flow field
+                const vector = new THREE.Vector3(vx, vy, vz).normalize().multiplyScalar(0.1);
+                flowField.push(vector);
             }
-        });
+        }
     }
     
-    // Update button text
-    const trailsBtn = document.getElementById('trailsBtn');
-    if (trailsBtn) {
-        trailsBtn.textContent = config.showTrails ? 'Hide Trails' : 'Show Trails';
+    // If showing field vectors, update them
+    if (config.showFieldVectors) {
+        updateFlowVectors();
     }
 }
 
-// Create particles
+// Create flow vector visualizations
+function updateFlowVectors() {
+    // Remove existing arrows
+    if (window.flowVectors) {
+        window.flowVectors.forEach(vector => vector.dispose());
+    }
+    
+    // If not showing vectors, return
+    if (!config.showFieldVectors) {
+        window.flowVectors = [];
+        return;
+    }
+    
+    // Create new arrows
+    window.flowVectors = [];
+    
+    // Number of vectors to show (reduced for performance)
+    const visualizationResolution = 5;
+    const size = visualizationResolution;
+    
+    for (let z = 0; z < size; z++) {
+        for (let y = 0; y < size; y++) {
+            for (let x = 0; x < size; x++) {
+                // Calculate position
+                const nx = (x / (size - 1)) * 2 - 1;
+                const ny = (y / (size - 1)) * 2 - 1;
+                const nz = (z / (size - 1)) * 2 - 1;
+                
+                const position = new THREE.Vector3(
+                    nx * config.fieldSize / 2,
+                    ny * config.fieldSize / 2,
+                    nz * config.fieldSize / 2
+                );
+                
+                // Get flow vector for this position
+                const fieldSize = config.fieldResolution;
+                const fx = Math.floor(((nx + 1) / 2) * fieldSize);
+                const fy = Math.floor(((ny + 1) / 2) * fieldSize);
+                const fz = Math.floor(((nz + 1) / 2) * fieldSize);
+                
+                const index = Math.min(
+                    fx + fy * fieldSize + fz * fieldSize * fieldSize,
+                    flowField.length - 1
+                );
+                
+                const direction = flowField[index].clone();
+                
+                // Create flow vector visualization
+                const flowVector = new FlowVector(position, direction);
+                window.flowVectors.push(flowVector);
+            }
+        }
+    }
+}
+
+// Create particles with random positions
 function createParticles() {
     // Remove existing particles
     particles.forEach(particle => particle.dispose());
     particles = [];
     
-    // Clear trails group
-    while(trailsGroup.children.length > 0) {
-        const trail = trailsGroup.children[0];
-        trailsGroup.remove(trail);
-        trail.geometry.dispose();
-        trail.material.dispose();
-    }
-    
     // Create new particles
     for (let i = 0; i < config.numParticles; i++) {
-        // Random position within sphere
+        // Random position within boundary sphere
         const theta = Math.random() * Math.PI * 2;
         const phi = Math.acos(2 * Math.random() - 1);
-        const r = config.boundaryRadius * Math.cbrt(Math.random()) * 0.8; // Cube root for uniform distribution
+        const radius = config.boundaryRadius * Math.cbrt(Math.random()); // Cube root for uniform distribution
         
         const position = new THREE.Vector3(
-            r * Math.sin(phi) * Math.cos(theta),
-            r * Math.sin(phi) * Math.sin(theta),
-            r * Math.cos(phi)
+            radius * Math.sin(phi) * Math.cos(theta),
+            radius * Math.sin(phi) * Math.sin(theta),
+            radius * Math.cos(phi)
         );
         
         // Create particle
-        const particle = new FlowParticle(position, config.particleSize);
-        
-        // Set initial color based on color scheme
-        particle.updateMaterial(config.colorScheme);
-        
+        const particle = new Particle(position);
+        particle.updateMaterial(config.colorScheme, i, config.numParticles);
         particles.push(particle);
     }
-    
-    // Update statistics
-    updateStats();
 }
 
 // Update particle materials based on color scheme
 function updateParticleMaterials() {
-    particles.forEach(particle => {
-        particle.updateMaterial(config.colorScheme);
+    particles.forEach((particle, index) => {
+        particle.updateMaterial(config.colorScheme, index, particles.length);
     });
+}
+
+// Function to toggle grid visibility
+function toggleGrid() {
+    config.showGrid = !config.showGrid;
+    if (gridHelper) gridHelper.visible = config.showGrid;
+    if (axisHelper) axisHelper.visible = config.showGrid;
+}
+
+// Function to toggle flow vectors
+function toggleFlowVectors() {
+    config.showFieldVectors = !config.showFieldVectors;
+    updateFlowVectors();
+}
+
+// Function to toggle pause state
+function togglePause() {
+    config.paused = !config.paused;
+    const pauseBtn = document.getElementById('pauseBtn');
+    if (pauseBtn) {
+        pauseBtn.textContent = config.paused ? 'Resume' : 'Pause';
+    }
+}
+
+// Reset the simulation
+function resetSimulation() {
+    generateFlowField();
+    createParticles();
 }
 
 // Animation loop
@@ -602,25 +437,23 @@ function animate() {
     // Update controls
     controls.update();
     
-    // Increment noise offset (time dimension)
+    // Regenerate flow field periodically for animation
     if (!config.paused) {
-        noiseOffset += delta * config.timeScale;
-    }
-    
-    // Update particles
-    if (!config.paused) {
-        particles.forEach(particle => particle.update(delta));
-        
-        // Update iterations counter for stats
-        config.iterations = (config.iterations || 0) + 1;
-        
-        // Update stats periodically
-        if (config.iterations % 30 === 0) {
-            updateStats();
+        // Update flow field every second
+        if (Math.floor(clock.getElapsedTime()) % 2 === 0 && 
+            Math.floor(clock.getElapsedTime()) !== window.lastFlowUpdate) {
+            window.lastFlowUpdate = Math.floor(clock.getElapsedTime());
+            generateFlowField();
         }
+        
+        // Update particles
+        particles.forEach(particle => {
+            particle.update(delta);
+            particle.updateMaterial(config.colorScheme, 0, 1);
+        });
     }
     
-    // Render the scene
+    // Render scene
     renderer.render(scene, camera);
 }
 
@@ -631,333 +464,201 @@ function onWindowResize() {
     renderer.setSize(window.innerWidth, window.innerHeight);
 }
 
-// Update statistics display
-function updateStats() {
-    const statsElement = document.getElementById('stats');
-    if (statsElement) {
-        statsElement.textContent = `Particles: ${particles.length} | Iterations: ${config.iterations || 0}`;
-    }
-}
-
-// Toggle pause state
-function togglePause() {
-    config.paused = !config.paused;
-    const pauseBtn = document.getElementById('pauseBtn');
-    if (pauseBtn) {
-        pauseBtn.textContent = config.paused ? 'Resume' : 'Pause';
-    }
-}
-
-// Reset the simulation
-function resetSimulation() {
-    createParticles();
-    config.iterations = 0;
-    noiseOffset = 0;
-    updateStats();
-}
-
-// Toggle flow dimension (2D vs 3D)
-function toggleFlowDimension() {
-    config.useZFlow = !config.useZFlow;
-    const flowDimBtn = document.getElementById('flowDimBtn');
-    if (flowDimBtn) {
-        flowDimBtn.textContent = config.useZFlow ? '3D Flow' : '2D Flow';
-    }
-}
-
-// Setup event listeners for UI controls
+// Setup UI event listeners
 function setupEventListeners() {
-    // Button event listeners
-    const pauseBtn = document.getElementById('pauseBtn');
-    if (pauseBtn) {
-        pauseBtn.addEventListener('click', togglePause);
-    }
+    // Number of particles slider
+    const particlesSlider = document.getElementById('resolution');
+    const particlesValue = document.getElementById('resolutionValue');
     
-    const resetBtn = document.getElementById('resetBtn');
-    if (resetBtn) {
-        resetBtn.addEventListener('click', resetSimulation);
-    }
-    
-    const trailsBtn = document.getElementById('trailsBtn');
-    if (trailsBtn) {
-        trailsBtn.addEventListener('click', toggleTrails);
-    }
-    
-    const flowDimBtn = document.getElementById('flowDimBtn');
-    if (flowDimBtn) {
-        flowDimBtn.addEventListener('click', toggleFlowDimension);
-    }
-    
-    const seedBtn = document.getElementById('seedBtn');
-    if (seedBtn) {
-        seedBtn.addEventListener('click', () => {
-            perlin.seed();
-        });
-    }
-    
-    // Slider event listeners
-    const particlesSlider = document.getElementById('particles');
-    if (particlesSlider) {
+    if (particlesSlider && particlesValue) {
+        // Change label
+        const label = particlesSlider.previousElementSibling;
+        if (label && label.tagName === 'LABEL') {
+            label.innerHTML = `Particles <span class="value-display" id="resolutionValue">${config.numParticles}</span>`;
+        }
+        
+        particlesSlider.min = 100;
+        particlesSlider.max = 2000;
+        particlesSlider.step = 100;
+        particlesSlider.value = config.numParticles;
+        particlesValue.textContent = config.numParticles;
+        
         particlesSlider.addEventListener('input', function() {
             config.numParticles = parseInt(this.value);
-            document.getElementById('particlesValue').textContent = config.numParticles;
-        });
-        
-        particlesSlider.addEventListener('change', function() {
-            resetSimulation();
+            particlesValue.textContent = config.numParticles;
+            createParticles();
         });
     }
     
-    const noiseScaleSlider = document.getElementById('noiseScale');
-    if (noiseScaleSlider) {
+    // Field strength slider
+    const fieldStrengthSlider = document.getElementById('isoLevel');
+    const fieldStrengthValue = document.getElementById('isoLevelValue');
+    
+    if (fieldStrengthSlider && fieldStrengthValue) {
+        // Change label
+        const label = fieldStrengthSlider.previousElementSibling;
+        if (label && label.tagName === 'LABEL') {
+            label.innerHTML = `Field Strength <span class="value-display" id="isoLevelValue">${config.fieldStrength.toFixed(1)}</span>`;
+        }
+        
+        fieldStrengthSlider.min = 0.1;
+        fieldStrengthSlider.max = 3.0;
+        fieldStrengthSlider.step = 0.1;
+        fieldStrengthSlider.value = config.fieldStrength;
+        fieldStrengthValue.textContent = config.fieldStrength.toFixed(1);
+        
+        fieldStrengthSlider.addEventListener('input', function() {
+            config.fieldStrength = parseFloat(this.value);
+            fieldStrengthValue.textContent = config.fieldStrength.toFixed(1);
+        });
+    }
+    
+    // Noise scale slider
+    const noiseScaleSlider = document.getElementById('scaleX');
+    const noiseScaleValue = document.getElementById('scaleXValue');
+    
+    if (noiseScaleSlider && noiseScaleValue) {
+        // Change label
+        const label = noiseScaleSlider.previousElementSibling;
+        if (label && label.tagName === 'LABEL') {
+            label.innerHTML = `Noise Scale <span class="value-display" id="scaleXValue">${config.noiseScale.toFixed(2)}</span>`;
+        }
+        
+        noiseScaleSlider.min = 0.01;
+        noiseScaleSlider.max = 0.5;
+        noiseScaleSlider.step = 0.01;
+        noiseScaleSlider.value = config.noiseScale;
+        noiseScaleValue.textContent = config.noiseScale.toFixed(2);
+        
         noiseScaleSlider.addEventListener('input', function() {
             config.noiseScale = parseFloat(this.value);
-            document.getElementById('noiseScaleValue').textContent = config.noiseScale.toFixed(2);
+            noiseScaleValue.textContent = config.noiseScale.toFixed(2);
+            generateFlowField();
         });
     }
     
-    const noiseSpeedSlider = document.getElementById('noiseSpeed');
-    if (noiseSpeedSlider) {
+    // Noise speed slider
+    const noiseSpeedSlider = document.getElementById('scaleY');
+    const noiseSpeedValue = document.getElementById('scaleYValue');
+    
+    if (noiseSpeedSlider && noiseSpeedValue) {
+        // Change label
+        const label = noiseSpeedSlider.previousElementSibling;
+        if (label && label.tagName === 'LABEL') {
+            label.innerHTML = `Noise Speed <span class="value-display" id="scaleYValue">${config.noiseSpeed.toFixed(2)}</span>`;
+        }
+        
+        noiseSpeedSlider.min = 0.01;
+        noiseSpeedSlider.max = 1.0;
+        noiseSpeedSlider.step = 0.01;
+        noiseSpeedSlider.value = config.noiseSpeed;
+        noiseSpeedValue.textContent = config.noiseSpeed.toFixed(2);
+        
         noiseSpeedSlider.addEventListener('input', function() {
             config.noiseSpeed = parseFloat(this.value);
-            document.getElementById('noiseSpeedValue').textContent = config.noiseSpeed.toFixed(2);
+            noiseSpeedValue.textContent = config.noiseSpeed.toFixed(2);
         });
     }
     
-    const particleSpeedSlider = document.getElementById('particleSpeed');
-    if (particleSpeedSlider) {
-        particleSpeedSlider.addEventListener('input', function() {
-            config.particleSpeed = parseFloat(this.value);
-            document.getElementById('particleSpeedValue').textContent = config.particleSpeed.toFixed(1);
-        });
-    }
+    // Particle size slider
+    const particleSizeSlider = document.getElementById('scaleZ');
+    const particleSizeValue = document.getElementById('scaleZValue');
     
-    const particleSizeSlider = document.getElementById('particleSize');
-    if (particleSizeSlider) {
+    if (particleSizeSlider && particleSizeValue) {
+        // Change label
+        const label = particleSizeSlider.previousElementSibling;
+        if (label && label.tagName === 'LABEL') {
+            label.innerHTML = `Particle Size <span class="value-display" id="scaleZValue">${config.particleSize.toFixed(2)}</span>`;
+        }
+        
+        particleSizeSlider.min = 0.05;
+        particleSizeSlider.max = 0.5;
+        particleSizeSlider.step = 0.05;
+        particleSizeSlider.value = config.particleSize;
+        particleSizeValue.textContent = config.particleSize.toFixed(2);
+        
         particleSizeSlider.addEventListener('input', function() {
             config.particleSize = parseFloat(this.value);
-            document.getElementById('particleSizeValue').textContent = config.particleSize.toFixed(1);
-        });
-        
-        particleSizeSlider.addEventListener('change', function() {
-            resetSimulation();
+            particleSizeValue.textContent = config.particleSize.toFixed(2);
+            createParticles();
         });
     }
     
-    const turbulenceSlider = document.getElementById('turbulence');
-    if (turbulenceSlider) {
-        turbulenceSlider.addEventListener('input', function() {
-            config.turbulence = parseFloat(this.value);
-            document.getElementById('turbulenceValue').textContent = config.turbulence.toFixed(2);
-        });
-    }
-    
-    const timeScaleSlider = document.getElementById('timeScale');
-    if (timeScaleSlider) {
-        timeScaleSlider.addEventListener('input', function() {
-            config.timeScale = parseFloat(this.value);
-            document.getElementById('timeScaleValue').textContent = config.timeScale.toFixed(1);
-        });
-    }
-    
-    // Dropdown event listeners
+    // Color scheme selector
     const colorSchemeSelect = document.getElementById('colorScheme');
+    
     if (colorSchemeSelect) {
+        // Add option for speed-based coloring
+        const speedOption = document.createElement('option');
+        speedOption.value = 'speed';
+        speedOption.textContent = 'Speed';
+        colorSchemeSelect.appendChild(speedOption);
+        
+        colorSchemeSelect.value = config.colorScheme;
+        
         colorSchemeSelect.addEventListener('change', function() {
             config.colorScheme = this.value;
             updateParticleMaterials();
         });
     }
     
-    const boundarySelect = document.getElementById('boundaryMode');
-    if (boundarySelect) {
-        boundarySelect.addEventListener('change', function() {
-            config.respawnAtBoundary = this.value === 'respawn';
+    // Max speed slider
+    const maxSpeedSlider = document.getElementById('rotationSpeed');
+    const maxSpeedValue = document.getElementById('rotationSpeedValue');
+    
+    if (maxSpeedSlider && maxSpeedValue) {
+        // Change label
+        const label = maxSpeedSlider.previousElementSibling;
+        if (label && label.tagName === 'LABEL') {
+            label.innerHTML = `Max Speed <span class="value-display" id="rotationSpeedValue">${config.maxSpeed.toFixed(1)}</span>`;
+        }
+        
+        maxSpeedSlider.min = 0.1;
+        maxSpeedSlider.max = 1.0;
+        maxSpeedSlider.step = 0.1;
+        maxSpeedSlider.value = config.maxSpeed;
+        maxSpeedValue.textContent = config.maxSpeed.toFixed(1);
+        
+        maxSpeedSlider.addEventListener('input', function() {
+            config.maxSpeed = parseFloat(this.value);
+            maxSpeedValue.textContent = config.maxSpeed.toFixed(1);
         });
     }
-}
-
-// Create UI elements programmatically if not in HTML
-function createUI() {
-    // Create UI container
-    const uiContainer = document.createElement('div');
-    uiContainer.id = 'ui-container';
-    uiContainer.style.position = 'absolute';
-    uiContainer.style.top = '10px';
-    uiContainer.style.left = '10px';
-    uiContainer.style.padding = '10px';
-    uiContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-    uiContainer.style.color = 'white';
-    uiContainer.style.fontFamily = 'Arial, sans-serif';
-    uiContainer.style.borderRadius = '5px';
-    uiContainer.style.zIndex = '100';
-    uiContainer.style.maxWidth = '300px';
-    document.body.appendChild(uiContainer);
     
-    // Add title
-    const title = document.createElement('h2');
-    title.textContent = 'Flow Field Controls';
-    title.style.margin = '0 0 10px 0';
-    uiContainer.appendChild(title);
-    
-    // Add stats display
-    const stats = document.createElement('div');
-    stats.id = 'stats';
-    stats.style.marginBottom = '10px';
-    uiContainer.appendChild(stats);
-    
-    // Add control buttons
-    const buttonContainer = document.createElement('div');
-    buttonContainer.style.display = 'grid';
-    buttonContainer.style.gridTemplateColumns = 'repeat(2, 1fr)';
-    buttonContainer.style.gap = '5px';
-    buttonContainer.style.marginBottom = '10px';
-    uiContainer.appendChild(buttonContainer);
-    
-    // Pause button
-    const pauseBtn = document.createElement('button');
-    pauseBtn.id = 'pauseBtn';
-    pauseBtn.textContent = 'Pause';
-    pauseBtn.style.padding = '5px';
-    buttonContainer.appendChild(pauseBtn);
-    
-    // Reset button
-    const resetBtn = document.createElement('button');
-    resetBtn.id = 'resetBtn';
-    resetBtn.textContent = 'Reset';
-    resetBtn.style.padding = '5px';
-    buttonContainer.appendChild(resetBtn);
-    
-    // Trails button
-    const trailsBtn = document.createElement('button');
-    trailsBtn.id = 'trailsBtn';
-    trailsBtn.textContent = config.showTrails ? 'Hide Trails' : 'Show Trails';
-    trailsBtn.style.padding = '5px';
-    buttonContainer.appendChild(trailsBtn);
-    
-    // Flow dimension button
-    const flowDimBtn = document.createElement('button');
-    flowDimBtn.id = 'flowDimBtn';
-    flowDimBtn.textContent = config.useZFlow ? '3D Flow' : '2D Flow';
-    flowDimBtn.style.padding = '5px';
-    buttonContainer.appendChild(flowDimBtn);
-    
-    // Seed button
-    const seedBtn = document.createElement('button');
-    seedBtn.id = 'seedBtn';
-    seedBtn.textContent = 'New Noise Seed';
-    seedBtn.style.padding = '5px';
-    seedBtn.style.gridColumn = 'span 2';
-    buttonContainer.appendChild(seedBtn);
-    
-    // Add sliders container
-    const slidersContainer = document.createElement('div');
-    uiContainer.appendChild(slidersContainer);
-    
-    // Function to create a slider with label
-    function createSlider(id, label, min, max, step, value) {
-        const container = document.createElement('div');
-        container.style.marginBottom = '10px';
-        
-        const labelElement = document.createElement('label');
-        labelElement.htmlFor = id;
-        labelElement.textContent = label + ': ';
-        
-        const valueDisplay = document.createElement('span');
-        valueDisplay.id = id + 'Value';
-        valueDisplay.textContent = value;
-        labelElement.appendChild(valueDisplay);
-        
-        const slider = document.createElement('input');
-        slider.type = 'range';
-        slider.id = id;
-        slider.min = min;
-        slider.max = max;
-        slider.step = step;
-        slider.value = value;
-        slider.style.width = '100%';
-        
-        container.appendChild(labelElement);
-        container.appendChild(slider);
-        
-        return container;
+    // Grid toggle button
+    const gridToggleButton = document.getElementById('gridToggle');
+    if (gridToggleButton) {
+        gridToggleButton.addEventListener('click', toggleGrid);
     }
     
-    // Add sliders
-    slidersContainer.appendChild(createSlider('particles', 'Particles', 100, 5000, 100, config.numParticles));
-    slidersContainer.appendChild(createSlider('noiseScale', 'Noise Scale', 0.01, 0.5, 0.01, config.noiseScale));
-    slidersContainer.appendChild(createSlider('noiseSpeed', 'Noise Speed', 0.01, 1.0, 0.01, config.noiseSpeed));
-    slidersContainer.appendChild(createSlider('particleSpeed', 'Particle Speed', 0.1, 2.0, 0.1, config.particleSpeed));
-    slidersContainer.appendChild(createSlider('particleSize', 'Particle Size', 0.1, 2.0, 0.1, config.particleSize));
-    slidersContainer.appendChild(createSlider('turbulence', 'Turbulence', 0, 1.0, 0.05, config.turbulence));
-    slidersContainer.appendChild(createSlider('timeScale', 'Time Scale', 0.1, 3.0, 0.1, config.timeScale));
+    // Reset button
+    const resetBtn = document.getElementById('resetBtn');
+    if (resetBtn) {
+        resetBtn.addEventListener('click', resetSimulation);
+    }
     
-    // Add dropdowns
-    const colorSchemeContainer = document.createElement('div');
-    colorSchemeContainer.style.marginBottom = '10px';
+    // Pause button
+    const pauseBtn = document.getElementById('pauseBtn');
+    if (pauseBtn) {
+        pauseBtn.addEventListener('click', togglePause);
+        pauseBtn.textContent = config.paused ? 'Resume' : 'Pause';
+    }
     
-    const colorSchemeLabel = document.createElement('label');
-    colorSchemeLabel.htmlFor = 'colorScheme';
-    colorSchemeLabel.textContent = 'Color Scheme: ';
-    
-    const colorSchemeSelect = document.createElement('select');
-    colorSchemeSelect.id = 'colorScheme';
-    colorSchemeSelect.style.width = '100%';
-    colorSchemeSelect.style.marginTop = '5px';
-    
-    const colorSchemes = ['flow', 'position', 'age', 'noise'];
-    colorSchemes.forEach(scheme => {
-        const option = document.createElement('option');
-        option.value = scheme;
-        option.textContent = scheme.charAt(0).toUpperCase() + scheme.slice(1);
-        if (scheme === config.colorScheme) {
-            option.selected = true;
-        }
-        colorSchemeSelect.appendChild(option);
-    });
-    
-    colorSchemeContainer.appendChild(colorSchemeLabel);
-    colorSchemeContainer.appendChild(colorSchemeSelect);
-    slidersContainer.appendChild(colorSchemeContainer);
-    
-    // Boundary behavior dropdown
-    const boundaryContainer = document.createElement('div');
-    boundaryContainer.style.marginBottom = '10px';
-    
-    const boundaryLabel = document.createElement('label');
-    boundaryLabel.htmlFor = 'boundaryMode';
-    boundaryLabel.textContent = 'Boundary Behavior: ';
-    
-    const boundarySelect = document.createElement('select');
-    boundarySelect.id = 'boundaryMode';
-    boundarySelect.style.width = '100%';
-    boundarySelect.style.marginTop = '5px';
-    
-    const respawnOption = document.createElement('option');
-    respawnOption.value = 'respawn';
-    respawnOption.textContent = 'Respawn';
-    respawnOption.selected = config.respawnAtBoundary;
-    boundarySelect.appendChild(respawnOption);
-    
-    const bounceOption = document.createElement('option');
-    bounceOption.value = 'bounce';
-    bounceOption.textContent = 'Bounce';
-    bounceOption.selected = !config.respawnAtBoundary;
-    boundarySelect.appendChild(bounceOption);
-    
-    boundaryContainer.appendChild(boundaryLabel);
-    boundaryContainer.appendChild(boundarySelect);
-    slidersContainer.appendChild(boundaryContainer);
+    // Add a button for toggling flow vectors
+    const flowVectorsBtn = document.getElementById('debugBtn');
+    if (flowVectorsBtn) {
+        flowVectorsBtn.textContent = 'Toggle Vectors';
+        flowVectorsBtn.addEventListener('click', toggleFlowVectors);
+    }
 }
 
-// Initialize when document is ready
-document.addEventListener('DOMContentLoaded', function() {
-    init();
-    // Start the animation loop
-    animate();
-});
+// Initialize the visualization once the DOM is loaded
+document.addEventListener('DOMContentLoaded', init);
 
-// Call init if document is already loaded
-if (document.readyState === 'complete' || document.readyState === 'interactive') {
-    init();
-}
+// Export functions for potential external use
+window.flowFieldSimulation = {
+    reset: resetSimulation,
+    togglePause: togglePause,
+    toggleGrid: toggleGrid,
+    toggleFlowVectors: toggleFlowVectors
+};

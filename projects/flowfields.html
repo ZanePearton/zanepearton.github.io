@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Flow Field Visualization</title>
+    <title>Flow Field Visualization - Three.js</title>
     <script type="importmap">
         {
           "imports": {
@@ -17,8 +17,9 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="../css/styles.css">
     <script type="module" src="../js/ui/main.js"></script>
-    <script type="module" src="../js/three/flowfields.js"></script>
     <script type="module" src="../js/ui/sidebar.js"></script>
+    <!-- Change the script path to point to your flow field implementation -->
+    <script type="module" src="../js/three/flowfield.js"></script>
 </head>
 
 <body>
@@ -57,66 +58,61 @@
                     <div class="control-title">Flow Field Visualization Controls</div>
                     <div class="control-content">
                         <div class="control-group">
-                            <label for="particles">Particles <span class="value-display" id="particlesValue">1000</span></label>
-                            <input type="range" id="particles" min="100" max="5000" value="1000" step="100">
+                            <label for="resolution">Particles <span class="value-display"
+                                    id="resolutionValue">1000</span></label>
+                            <input type="range" id="resolution" min="100" max="2000" value="1000" step="100">
 
-                            <label for="noiseScale">Noise Scale <span class="value-display" id="noiseScaleValue">0.1</span></label>
-                            <input type="range" id="noiseScale" min="0.01" max="0.5" value="0.1" step="0.01">
+                            <label for="isoLevel">Field Strength <span class="value-display" id="isoLevelValue">1.0</span></label>
+                            <input type="range" id="isoLevel" min="0.1" max="3.0" value="1.0" step="0.1">
                         </div>
 
                         <div class="control-group">
-                            <label for="noiseSpeed">Noise Speed <span class="value-display" id="noiseSpeedValue">0.2</span></label>
-                            <input type="range" id="noiseSpeed" min="0.01" max="1.0" value="0.2" step="0.01">
+                            <label for="scaleX">Noise Scale <span class="value-display" id="scaleXValue">0.10</span></label>
+                            <input type="range" id="scaleX" min="0.01" max="0.5" value="0.10" step="0.01">
 
-                            <label for="particleSpeed">Particle Speed <span class="value-display" id="particleSpeedValue">0.3</span></label>
-                            <input type="range" id="particleSpeed" min="0.1" max="2.0" value="0.3" step="0.1">
+                            <label for="scaleY">Noise Speed <span class="value-display" id="scaleYValue">0.20</span></label>
+                            <input type="range" id="scaleY" min="0.01" max="1.0" value="0.20" step="0.01">
+
+                            <label for="scaleZ">Particle Size <span class="value-display" id="scaleZValue">0.20</span></label>
+                            <input type="range" id="scaleZ" min="0.05" max="0.5" value="0.20" step="0.05">
                         </div>
 
                         <div class="control-group">
-                            <label for="particleSize">Particle Size <span class="value-display" id="particleSizeValue">0.5</span></label>
-                            <input type="range" id="particleSize" min="0.1" max="2.0" value="0.5" step="0.1">
-
-                            <label for="turbulence">Turbulence <span class="value-display" id="turbulenceValue">0.5</span></label>
-                            <input type="range" id="turbulence" min="0" max="1.0" value="0.5" step="0.05">
-                        </div>
-
-                        <div class="control-group">
-                            <label for="timeScale">Time Scale <span class="value-display" id="timeScaleValue">1.0</span></label>
-                            <input type="range" id="timeScale" min="0.1" max="3.0" value="1.0" step="0.1">
-
                             <label for="colorScheme">Color Scheme</label>
                             <select id="colorScheme">
-                                <option value="flow">Flow Direction</option>
-                                <option value="position">Position</option>
-                                <option value="age">Age</option>
-                                <option value="noise">Noise Value</option>
+                                <option value="gradient" selected>Orange-Purple Gradient</option>
+                                <option value="rainbow">Rainbow</option>
+                                <option value="speed">Speed</option>
+                                <option value="normals">Normal Map</option>
+                                <option value="wireframe">Wireframe</option>
                             </select>
                         </div>
 
                         <div class="control-group">
-                            <label for="boundaryMode">Boundary Behavior</label>
-                            <select id="boundaryMode">
-                                <option value="respawn">Respawn</option>
-                                <option value="bounce">Bounce</option>
-                            </select>
+                            <label for="rotationSpeed">Max Speed <span class="value-display"
+                                    id="rotationSpeedValue">0.5</span></label>
+                            <input type="range" id="rotationSpeed" min="0.1" max="1.0" value="0.5" step="0.1">
+                            <button id="gridToggle">Toggle Grid</button>
+                        </div>
+
+                        <!-- Control groups for flow field -->
+                        <div class="control-group">
+                            <h4>Flow Field Controls</h4>
+                            <button id="resetBtn">Reset Field</button>
+                            <button id="pauseBtn">Pause</button>
+                            <button id="debugBtn">Toggle Vectors</button>
                         </div>
 
                         <div class="control-group">
-                            <div class="button-group">
-                                <button id="trailsBtn">Hide Trails</button>
-                                <button id="flowDimBtn">3D Flow</button>
-                                <button id="seedBtn">New Noise Seed</button>
-                                <button id="pauseBtn">Pause</button>
-                                <button id="resetBtn">Reset</button>
-                            </div>
+                            <div id="stats">Particles: 1000 | Flow Field Active</div>
+                            <div id="debug"></div>
                         </div>
-                        
-                        <div id="stats">Particles: 1000 | Iterations: 0</div>
                     </div>
                 </div>
             </div>
         </div>
     </section>
+
 
     <!-- Contact Section -->
     <section class="section contact" id="contact">
@@ -185,8 +181,6 @@
             <p class="copyright">© 2025 Zane Pearton. All rights reserved.</p>
         </div>
     </footer>
-
-
 </body>
 
 </html>
