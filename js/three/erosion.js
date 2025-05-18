@@ -789,7 +789,7 @@ function setupEventListeners() {
 }
 
 // Initialize the visualization once the DOM is loaded
-// document.addEventListener('DOMContentLoaded', init);
+document.addEventListener('DOMContentLoaded', init);
 
 // Export functions for external use
 export {
