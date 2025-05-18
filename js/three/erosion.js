@@ -4,7 +4,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 // Initialize variables
 let renderer, scene, camera, controls;
-let terrainMesh, terrainGeometry;
+let pointCloudMesh, pointPositions, pointColors;
 let waterParticles = [];
 let waterDropletsMesh;
 let gridHelper, boundaryMesh;
@@ -13,115 +13,117 @@ let clock = new THREE.Clock();
 // Configuration parameters
 let config = {
     paused: false,
-    showWireframe: true,
+    showGrid: true,
     rainIntensity: 5,
     erosionRate: 0.3,
     depositionRate: 0.1,
-    terrainHeight: 10,
+    pointHeight: 10,
     boundaryRadius: 15,
     showFlowVectors: false,
-    colorScheme: 'gradient',
+    pointSize: 0.2,
     iterations: 0
 };
 
 // Constants for simulation
-const TERRAIN_SIZE = 50;
-const TERRAIN_RESOLUTION = 64;
+const GRID_SIZE = 50;
+const GRID_RESOLUTION = 64;
 const MAX_PARTICLES = 500;
 
-// Initialize terrain heightmap
-function initializeTerrain() {
-    const terrainData = new Float32Array(TERRAIN_RESOLUTION * TERRAIN_RESOLUTION);
+// Initialize point grid
+function initializePointGrid() {
+    // Create arrays for positions and colors
+    const totalPoints = GRID_RESOLUTION * GRID_RESOLUTION;
+    const positions = new Float32Array(totalPoints * 3);
+    const colors = new Float32Array(totalPoints * 3);
+    const heightData = new Float32Array(totalPoints);
     
-    // Create a heightmap with some mountains and valleys
-    for (let z = 0; z < TERRAIN_RESOLUTION; z++) {
-        for (let x = 0; x < TERRAIN_RESOLUTION; x++) {
-            // Normalize coordinates to [-1, 1]
-            const nx = (x / TERRAIN_RESOLUTION) * 2 - 1;
-            const nz = (z / TERRAIN_RESOLUTION) * 2 - 1;
+    // Create a grid of points with heights
+    let index = 0;
+    for (let z = 0; z < GRID_RESOLUTION; z++) {
+        for (let x = 0; x < GRID_RESOLUTION; x++) {
+            // Calculate grid positions
+            const xPos = (x / (GRID_RESOLUTION - 1) - 0.5) * GRID_SIZE;
+            const zPos = (z / (GRID_RESOLUTION - 1) - 0.5) * GRID_SIZE;
             
-            // Create mountain ranges with Perlin-like noise
+            // Normalize coordinates to [-1, 1]
+            const nx = (x / GRID_RESOLUTION) * 2 - 1;
+            const nz = (z / GRID_RESOLUTION) * 2 - 1;
+            
+            // Create height with Perlin-like noise
             let height = 0;
             
-            // Large features (mountains)
+            // Large features
             height += Math.sin(nx * 3) * Math.cos(nz * 3) * 0.5;
             
-            // Medium features (hills)
+            // Medium features
             height += Math.sin(nx * 7 + 0.5) * Math.sin(nz * 6 + 0.5) * 0.25;
             
-            // Small features (bumps)
+            // Small features
             height += Math.sin(nx * 15) * Math.sin(nz * 15) * 0.125;
             
-            // Add a central mountain
+            // Add a central peak
             const distFromCenter = Math.sqrt(nx*nx + nz*nz);
             height += Math.max(0, (1 - distFromCenter) * 1.5);
             
             // Normalize height to range [0, 1]
             height = (height + 1.5) / 3;
             
-            // Store height in heightmap
-            terrainData[z * TERRAIN_RESOLUTION + x] = height * config.terrainHeight;
+            // Store positions
+            positions[index * 3] = xPos;
+            positions[index * 3 + 1] = height * config.pointHeight;
+            positions[index * 3 + 2] = zPos;
+            
+            // Store height data for erosion calculations
+            heightData[index] = height * config.pointHeight;
+            
+            // Color based on height (we'll update this later)
+            const color = new THREE.Color();
+            if (height < 0.1) {
+                color.setRGB(0.1, 0.2, 0.5); // Deep water
+            } else if (height < 0.2) {
+                color.setRGB(0.7, 0.7, 0.5); // Sand
+            } else if (height < 0.4) {
+                color.setRGB(0.3, 0.5, 0.2); // Low ground
+            } else if (height < 0.7) {
+                color.setRGB(0.2, 0.4, 0.1); // Hills
+            } else if (height < 0.9) {
+                color.setRGB(0.5, 0.5, 0.5); // Mountains
+            } else {
+                color.setRGB(1, 1, 1); // Peaks
+            }
+            
+            colors[index * 3] = color.r;
+            colors[index * 3 + 1] = color.g;
+            colors[index * 3 + 2] = color.b;
+            
+            index++;
         }
     }
     
-    return terrainData;
+    return { positions, colors, heightData };
 }
 
-// Create visual terrain mesh from heightmap
-function createTerrainMesh(terrainData) {
-    const geometry = new THREE.PlaneGeometry(
-        TERRAIN_SIZE, 
-        TERRAIN_SIZE, 
-        TERRAIN_RESOLUTION - 1, 
-        TERRAIN_RESOLUTION - 1
-    );
-    geometry.rotateX(-Math.PI / 2);
+// Create visual point cloud from position data
+function createPointCloudMesh(positions, colors) {
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     
-    // Apply heightmap to geometry
-    const vertices = geometry.attributes.position.array;
-    for (let i = 0, j = 0; i < vertices.length; i += 3, j++) {
-        vertices[i + 1] = terrainData[j];
-    }
-    
-    // Update normals for lighting
-    geometry.computeVertexNormals();
-    
-    // Create material with phong shading
-    const material = new THREE.MeshPhongMaterial({
-        color: 0x708090,
-        flatShading: false,
-        wireframe: false,
-        vertexColors: false
+    const material = new THREE.PointsMaterial({
+        size: config.pointSize,
+        vertexColors: true,
+        sizeAttenuation: true
     });
     
-    // Create wireframe material
-    const wireframeMaterial = new THREE.MeshBasicMaterial({
-        color: 0x000000,
-        wireframe: true,
-        transparent: true,
-        opacity: 0.15
-    });
+    const pointCloud = new THREE.Points(geometry, material);
     
-    // Create mesh with materials
-    const terrain = new THREE.Mesh(geometry, material);
-    const wireframe = new THREE.Mesh(geometry, wireframeMaterial);
-    
-    terrain.add(wireframe);
-    wireframe.visible = config.showWireframe;
-    
-    // Add some coloring based on height
-    updateTerrainColors(terrain, terrainData);
-    
-    return { terrain, geometry };
+    return { pointCloud, geometry };
 }
 
-// Color the terrain based on height
-function updateTerrainColors(terrain, terrainData) {
-    const colors = [];
-    const geometry = terrain.geometry;
-    
-    for (let i = 0; i < terrainData.length; i++) {
-        const height = terrainData[i] / config.terrainHeight;
+// Update point cloud colors based on height
+function updatePointColors(positions, colors) {
+    for (let i = 0; i < positions.length / 3; i++) {
+        const height = positions[i * 3 + 1] / config.pointHeight;
         
         let color = new THREE.Color();
         
@@ -145,15 +147,10 @@ function updateTerrainColors(terrain, terrainData) {
             color.setRGB(1, 1, 1);
         }
         
-        colors.push(color.r, color.g, color.b);
+        colors[i * 3] = color.r;
+        colors[i * 3 + 1] = color.g;
+        colors[i * 3 + 2] = color.b;
     }
-    
-    // Apply colors to geometry
-    geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-    
-    // Update material to use vertex colors
-    terrain.material.vertexColors = true;
-    terrain.material.needsUpdate = true;
 }
 
 // Create water droplets for simulation
@@ -166,7 +163,7 @@ function createWaterParticles() {
     
     const material = new THREE.PointsMaterial({
         color: 0x00aaff,
-        size: 0.5,
+        size: 0.3,
         transparent: true,
         opacity: 0.6,
         depthWrite: false
@@ -192,16 +189,11 @@ function createWaterParticles() {
 function createDroplet(waterParticles) {
     for (let i = 0; i < waterParticles.length; i++) {
         if (!waterParticles[i].active) {
-            const x = (Math.random() * 0.8 + 0.1) * TERRAIN_SIZE - TERRAIN_SIZE / 2;
-            const z = (Math.random() * 0.8 + 0.1) * TERRAIN_SIZE - TERRAIN_SIZE / 2;
+            const x = (Math.random() * 0.8 + 0.1) * GRID_SIZE - GRID_SIZE / 2;
+            const z = (Math.random() * 0.8 + 0.1) * GRID_SIZE - GRID_SIZE / 2;
             
             // Find height at this position
-            const terrainX = Math.floor((x + TERRAIN_SIZE / 2) / TERRAIN_SIZE * (TERRAIN_RESOLUTION - 1));
-            const terrainZ = Math.floor((z + TERRAIN_SIZE / 2) / TERRAIN_SIZE * (TERRAIN_RESOLUTION - 1));
-            const index = terrainZ * TERRAIN_RESOLUTION + terrainX;
-            
-            const terrainData = getCurrentTerrainData();
-            const height = terrainData[index] + 0.5; // Start slightly above terrain
+            const height = getHeightAt(x, z) + 0.5; // Start slightly above
             
             waterParticles[i].active = true;
             waterParticles[i].position.set(x, height, z);
@@ -214,41 +206,39 @@ function createDroplet(waterParticles) {
     }
 }
 
-// Get current terrain data from geometry
-function getCurrentTerrainData() {
-    if (!terrainGeometry) return new Float32Array(TERRAIN_RESOLUTION * TERRAIN_RESOLUTION);
+// Get current grid point data
+function getCurrentPointData() {
+    if (!pointCloudMesh) return { positions: new Float32Array(0), colors: new Float32Array(0) };
     
-    const positions = terrainGeometry.attributes.position.array;
-    const terrainData = new Float32Array(TERRAIN_RESOLUTION * TERRAIN_RESOLUTION);
-    
-    for (let i = 0, j = 0; i < positions.length; i += 3, j++) {
-        terrainData[j] = positions[i + 1]; // Y coordinate is height
-    }
-    
-    return terrainData;
+    return {
+        positions: pointCloudMesh.geometry.attributes.position.array,
+        colors: pointCloudMesh.geometry.attributes.color.array
+    };
 }
 
-// Get interpolated terrain height at given world position
-function getTerrainHeightAt(x, z, terrainData) {
-    // Convert world position to terrain grid coordinates
-    const gridX = ((x + TERRAIN_SIZE / 2) / TERRAIN_SIZE) * (TERRAIN_RESOLUTION - 1);
-    const gridZ = ((z + TERRAIN_SIZE / 2) / TERRAIN_SIZE) * (TERRAIN_RESOLUTION - 1);
+// Get interpolated height at given world position
+function getHeightAt(x, z) {
+    const { positions } = getCurrentPointData();
+    
+    // Convert world position to grid coordinates
+    const gridX = ((x + GRID_SIZE / 2) / GRID_SIZE) * (GRID_RESOLUTION - 1);
+    const gridZ = ((z + GRID_SIZE / 2) / GRID_SIZE) * (GRID_RESOLUTION - 1);
     
     // Get grid cell indices
     const x0 = Math.floor(gridX);
-    const x1 = Math.min(x0 + 1, TERRAIN_RESOLUTION - 1);
+    const x1 = Math.min(x0 + 1, GRID_RESOLUTION - 1);
     const z0 = Math.floor(gridZ);
-    const z1 = Math.min(z0 + 1, TERRAIN_RESOLUTION - 1);
+    const z1 = Math.min(z0 + 1, GRID_RESOLUTION - 1);
     
     // Get fractional part for interpolation
     const fx = gridX - x0;
     const fz = gridZ - z0;
     
     // Get heights at four corners
-    const h00 = terrainData[z0 * TERRAIN_RESOLUTION + x0];
-    const h10 = terrainData[z0 * TERRAIN_RESOLUTION + x1];
-    const h01 = terrainData[z1 * TERRAIN_RESOLUTION + x0];
-    const h11 = terrainData[z1 * TERRAIN_RESOLUTION + x1];
+    const h00 = positions[(z0 * GRID_RESOLUTION + x0) * 3 + 1];
+    const h10 = positions[(z0 * GRID_RESOLUTION + x1) * 3 + 1];
+    const h01 = positions[(z1 * GRID_RESOLUTION + x0) * 3 + 1];
+    const h11 = positions[(z1 * GRID_RESOLUTION + x1) * 3 + 1];
     
     // Bilinear interpolation
     const h0 = h00 * (1 - fx) + h10 * fx;
@@ -258,12 +248,12 @@ function getTerrainHeightAt(x, z, terrainData) {
 }
 
 // Get terrain gradient (slope) at given position
-function getTerrainGradient(x, z, terrainData) {
+function getHeightGradient(x, z) {
     const eps = 0.1;
     
-    const h = getTerrainHeightAt(x, z, terrainData);
-    const hx = getTerrainHeightAt(x + eps, z, terrainData);
-    const hz = getTerrainHeightAt(x, z + eps, terrainData);
+    const h = getHeightAt(x, z);
+    const hx = getHeightAt(x + eps, z);
+    const hz = getHeightAt(x, z + eps);
     
     return new THREE.Vector3(
         (hx - h) / eps,
@@ -272,38 +262,56 @@ function getTerrainGradient(x, z, terrainData) {
     );
 }
 
-// Modify terrain at position
-function modifyTerrain(x, z, amount, terrainData) {
-    // Convert world position to terrain grid coordinates
-    const gridX = Math.floor(((x + TERRAIN_SIZE / 2) / TERRAIN_SIZE) * (TERRAIN_RESOLUTION - 1));
-    const gridZ = Math.floor(((z + TERRAIN_SIZE / 2) / TERRAIN_SIZE) * (TERRAIN_RESOLUTION - 1));
+// Modify point height at position
+function modifyPointHeight(x, z, amount) {
+    // Convert world position to grid coordinates
+    const gridX = Math.floor(((x + GRID_SIZE / 2) / GRID_SIZE) * (GRID_RESOLUTION - 1));
+    const gridZ = Math.floor(((z + GRID_SIZE / 2) / GRID_SIZE) * (GRID_RESOLUTION - 1));
     
     // Check bounds
-    if (gridX < 0 || gridX >= TERRAIN_RESOLUTION || gridZ < 0 || gridZ >= TERRAIN_RESOLUTION) {
+    if (gridX < 0 || gridX >= GRID_RESOLUTION || gridZ < 0 || gridZ >= GRID_RESOLUTION) {
         return;
     }
     
-    // Get index in terrain data
-    const index = gridZ * TERRAIN_RESOLUTION + gridX;
+    // Get index in point data
+    const index = gridZ * GRID_RESOLUTION + gridX;
     
-    // Add amount to terrain height
-    terrainData[index] += amount;
+    // Get current position data
+    const { positions, colors } = getCurrentPointData();
     
-    // Update vertex position in geometry
-    const positions = terrainGeometry.attributes.position.array;
-    const vertexIndex = index * 3 + 1; // Y coordinate is at index + 1
-    positions[vertexIndex] = terrainData[index];
+    // Add amount to point height
+    positions[index * 3 + 1] += amount;
+    
+    // Update color based on new height
+    const height = positions[index * 3 + 1] / config.pointHeight;
+    
+    let color = new THREE.Color();
+    
+    if (height < 0.1) {
+        color.setRGB(0.1, 0.2, 0.5); // Deep water
+    } else if (height < 0.2) {
+        color.setRGB(0.7, 0.7, 0.5); // Sand
+    } else if (height < 0.4) {
+        color.setRGB(0.3, 0.5, 0.2); // Low ground
+    } else if (height < 0.7) {
+        color.setRGB(0.2, 0.4, 0.1); // Hills
+    } else if (height < 0.9) {
+        color.setRGB(0.5, 0.5, 0.5); // Mountains
+    } else {
+        color.setRGB(1, 1, 1); // Peaks
+    }
+    
+    colors[index * 3] = color.r;
+    colors[index * 3 + 1] = color.g;
+    colors[index * 3 + 2] = color.b;
     
     // Mark attributes for update
-    terrainGeometry.attributes.position.needsUpdate = true;
-    
-    // We need to recompute normals for proper lighting
-    terrainGeometry.computeVertexNormals();
+    pointCloudMesh.geometry.attributes.position.needsUpdate = true;
+    pointCloudMesh.geometry.attributes.color.needsUpdate = true;
 }
 
 // Update water droplet simulation
 function updateWaterParticles(delta) {
-    const terrainData = getCurrentTerrainData();
     let activeCount = 0;
     
     // Process each water particle
@@ -319,40 +327,37 @@ function updateWaterParticles(delta) {
         
         if (droplet.lifetime <= 0) {
             // Deposit any remaining sediment when particle dies
-            modifyTerrain(
+            modifyPointHeight(
                 droplet.position.x,
                 droplet.position.z,
-                droplet.sediment,
-                terrainData
+                droplet.sediment
             );
             
             droplet.active = false;
             continue;
         }
         
-        // Get current terrain height at droplet position
-        const terrainHeight = getTerrainHeightAt(
+        // Get current point height at droplet position
+        const pointHeight = getHeightAt(
             droplet.position.x,
-            droplet.position.z,
-            terrainData
+            droplet.position.z
         );
         
         // If water is underground, bring it to surface
-        if (droplet.position.y < terrainHeight) {
-            droplet.position.y = terrainHeight;
+        if (droplet.position.y < pointHeight) {
+            droplet.position.y = pointHeight;
         }
         
         // Calculate how far above terrain the droplet is
-        const heightAboveTerrain = droplet.position.y - terrainHeight;
+        const heightAbovePoint = droplet.position.y - pointHeight;
         
-        // Get terrain gradient (slope direction)
-        const gradient = getTerrainGradient(
+        // Get gradient (slope direction)
+        const gradient = getHeightGradient(
             droplet.position.x,
-            droplet.position.z,
-            terrainData
+            droplet.position.z
         );
         
-        // Apply gravity and terrain influence to velocity
+        // Apply gravity and slope influence to velocity
         droplet.velocity.x += gradient.x * 0.05;
         droplet.velocity.z += gradient.z * 0.05;
         droplet.velocity.y -= 0.05; // Gravity
@@ -367,13 +372,12 @@ function updateWaterParticles(delta) {
         // Limit erosion
         erosionAmount = Math.min(erosionAmount, 0.1);
         
-        // Erode terrain and pick up sediment
-        if (heightAboveTerrain < 0.5) {
-            modifyTerrain(
+        // Erode points and pick up sediment
+        if (heightAbovePoint < 0.5) {
+            modifyPointHeight(
                 droplet.position.x,
                 droplet.position.z,
-                -erosionAmount,
-                terrainData
+                -erosionAmount
             );
             
             droplet.sediment += erosionAmount;
@@ -383,11 +387,10 @@ function updateWaterParticles(delta) {
         if (slope < 0.1 || droplet.sediment > 1.0) {
             const depositionAmount = droplet.sediment * config.depositionRate;
             
-            modifyTerrain(
+            modifyPointHeight(
                 droplet.position.x,
                 droplet.position.z,
-                depositionAmount,
-                terrainData
+                depositionAmount
             );
             
             droplet.sediment -= depositionAmount;
@@ -401,8 +404,8 @@ function updateWaterParticles(delta) {
         
         // Check if out of bounds
         if (
-            Math.abs(droplet.position.x) > TERRAIN_SIZE / 2 ||
-            Math.abs(droplet.position.z) > TERRAIN_SIZE / 2 ||
+            Math.abs(droplet.position.x) > GRID_SIZE / 2 ||
+            Math.abs(droplet.position.z) > GRID_SIZE / 2 ||
             droplet.position.y < 0
         ) {
             droplet.active = false;
@@ -468,7 +471,7 @@ function init() {
     
     // Setup scene with appropriate background color
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(isDarkMode ? 0x121212 : 0x87ceeb); // Sky blue or dark
+    scene.background = new THREE.Color(isDarkMode ? 0x121212 : 0x111111); // Dark background for better visibility
     
     // Setup camera
     camera = new THREE.PerspectiveCamera(
@@ -478,18 +481,18 @@ function init() {
         0.1,
         1000
     );
-    camera.position.set(TERRAIN_SIZE * 0.8, TERRAIN_SIZE * 0.7, TERRAIN_SIZE * 0.8);
+    camera.position.set(GRID_SIZE * 0.8, GRID_SIZE * 0.7, GRID_SIZE * 0.8);
     camera.lookAt(0, 0, 0);
     
     // Setup orbit controls
     controls = new OrbitControls(camera, renderer.domElement);
     controls.minDistance = 10;
-    controls.maxDistance = TERRAIN_SIZE * 2;
+    controls.maxDistance = GRID_SIZE * 2;
     controls.maxPolarAngle = Math.PI / 2 - 0.1; // Prevent going below ground
     controls.update();
     
     // Add grid helper
-    gridHelper = new THREE.GridHelper(TERRAIN_SIZE, 20, 0x000000, 0x000000);
+    gridHelper = new THREE.GridHelper(GRID_SIZE, 20, 0x444444, 0x444444);
     gridHelper.position.y = 0;
     scene.add(gridHelper);
     
@@ -499,17 +502,15 @@ function init() {
     
     const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
     directionalLight.position.set(50, 100, 50);
-    directionalLight.castShadow = true;
-    directionalLight.shadow.mapSize.width = 2048;
-    directionalLight.shadow.mapSize.height = 2048;
     scene.add(directionalLight);
     
-    // Create terrain
-    const terrainData = initializeTerrain();
-    const { terrain, geometry } = createTerrainMesh(terrainData);
-    scene.add(terrain);
-    terrainMesh = terrain;
-    terrainGeometry = geometry;
+    // Create point cloud
+    const { positions, colors } = initializePointGrid();
+    const { pointCloud, geometry } = createPointCloudMesh(positions, colors);
+    scene.add(pointCloud);
+    pointCloudMesh = pointCloud;
+    pointPositions = positions;
+    pointColors = colors;
     
     // Create water particles
     const { waterParticles: particles, dropletsMesh } = createWaterParticles();
@@ -520,7 +521,7 @@ function init() {
     // Add boundary sphere (transparent)
     const boundaryGeometry = new THREE.SphereGeometry(config.boundaryRadius, 32, 32);
     const boundaryMaterial = new THREE.MeshBasicMaterial({
-        color: 0x888888,
+        color: 0x444444,
         transparent: true,
         opacity: 0.1,
         wireframe: true
@@ -529,7 +530,7 @@ function init() {
     scene.add(boundaryMesh);
     
     // Add fog for atmospheric effect
-    scene.fog = new THREE.Fog(0x87ceeb, TERRAIN_SIZE * 0.8, TERRAIN_SIZE * 2);
+    scene.fog = new THREE.Fog(0x000000, GRID_SIZE * 1.2, GRID_SIZE * 2);
     
     // Setup UI listeners
     setupEventListeners();
@@ -540,7 +541,7 @@ function init() {
     // Update statistics
     updateStats(0, 0);
     
-    console.log("Erosion simulation initialized");
+    console.log("Point-based erosion simulation initialized");
 }
 
 // Animation loop
@@ -580,27 +581,26 @@ function onWindowResize() {
     renderer.setSize(width, height);
 }
 
-// Toggle wireframe visibility
-function toggleWireframe() {
-    config.showWireframe = !config.showWireframe;
+// Toggle grid visibility
+function toggleGrid() {
+    config.showGrid = !config.showGrid;
     
-    if (terrainMesh && terrainMesh.children.length > 0) {
-        terrainMesh.children[0].visible = config.showWireframe;
+    if (gridHelper) {
+        gridHelper.visible = config.showGrid;
     }
 }
 
-// Reset terrain to initial state
-function resetTerrain() {
-    // Create new terrain
-    scene.remove(terrainMesh);
-    terrainGeometry.dispose();
-    terrainMesh.material.dispose();
+// Reset point grid to initial state
+function resetPointGrid() {
+    // Create new point grid
+    scene.remove(pointCloudMesh);
     
-    const terrainData = initializeTerrain();
-    const { terrain, geometry } = createTerrainMesh(terrainData);
-    scene.add(terrain);
-    terrainMesh = terrain;
-    terrainGeometry = geometry;
+    const { positions, colors } = initializePointGrid();
+    const { pointCloud, geometry } = createPointCloudMesh(positions, colors);
+    scene.add(pointCloud);
+    pointCloudMesh = pointCloud;
+    pointPositions = positions;
+    pointColors = colors;
     
     // Reset statistics
     config.iterations = 0;
@@ -630,10 +630,17 @@ function togglePause() {
 // Toggle flow vectors visibility
 function toggleFlowVectors() {
     config.showFlowVectors = !config.showFlowVectors;
-    
-    // Flow vectors implementation would go here
-    // This is a placeholder for now
     console.log("Flow vectors toggled:", config.showFlowVectors);
+}
+
+// Update point size
+function updatePointSize(size) {
+    config.pointSize = size;
+    
+    if (pointCloudMesh) {
+        pointCloudMesh.material.size = size;
+        pointCloudMesh.material.needsUpdate = true;
+    }
 }
 
 // Update statistics display
@@ -693,22 +700,36 @@ function setupEventListeners() {
         });
     }
     
-    // Terrain height slider
-    const terrainHeightSlider = document.getElementById('terrainHeightSlider');
-    const terrainHeightValue = document.getElementById('terrainHeightValue');
+    // Point height slider
+    const pointHeightSlider = document.getElementById('pointHeightSlider');
+    const pointHeightValue = document.getElementById('pointHeightValue');
     
-    if (terrainHeightSlider && terrainHeightValue) {
-        terrainHeightSlider.value = config.terrainHeight;
-        terrainHeightValue.textContent = config.terrainHeight;
+    if (pointHeightSlider && pointHeightValue) {
+        pointHeightSlider.value = config.pointHeight;
+        pointHeightValue.textContent = config.pointHeight;
         
-        terrainHeightSlider.addEventListener('input', function() {
-            config.terrainHeight = parseInt(this.value);
-            terrainHeightValue.textContent = config.terrainHeight;
-            // Note: This doesn't automatically update the terrain
-            // You may want to call resetTerrain() when the slider is released
+        pointHeightSlider.addEventListener('input', function() {
+            config.pointHeight = parseInt(this.value);
+            pointHeightValue.textContent = config.pointHeight;
         });
         
-        terrainHeightSlider.addEventListener('change', resetTerrain);
+        pointHeightSlider.addEventListener('change', resetPointGrid);
+    }
+    
+    // Point size slider
+    const pointSizeSlider = document.getElementById('pointSizeSlider');
+    const pointSizeValue = document.getElementById('pointSizeValue');
+    
+    if (pointSizeSlider && pointSizeValue) {
+        pointSizeSlider.value = config.pointSize;
+        pointSizeValue.textContent = config.pointSize;
+        
+        pointSizeSlider.addEventListener('input', function() {
+            const size = parseFloat(this.value);
+            updatePointSize(size);
+            config.pointSize = size;
+            pointSizeValue.textContent = size;
+        });
     }
     
     // Boundary radius slider
@@ -728,7 +749,7 @@ function setupEventListeners() {
                 scene.remove(boundaryMesh);
                 const boundaryGeometry = new THREE.SphereGeometry(config.boundaryRadius, 32, 32);
                 const boundaryMaterial = new THREE.MeshBasicMaterial({
-                    color: 0x888888,
+                    color: 0x444444,
                     transparent: true,
                     opacity: 0.1,
                     wireframe: true
@@ -742,17 +763,13 @@ function setupEventListeners() {
     // Grid toggle button
     const gridToggle = document.getElementById('gridToggle');
     if (gridToggle) {
-        gridToggle.addEventListener('click', function() {
-            if (gridHelper) {
-                gridHelper.visible = !gridHelper.visible;
-            }
-        });
+        gridToggle.addEventListener('click', toggleGrid);
     }
     
-    // Reset terrain button
+    // Reset point grid button
     const resetBtn = document.getElementById('resetBtn');
     if (resetBtn) {
-        resetBtn.addEventListener('click', resetTerrain);
+        resetBtn.addEventListener('click', resetPointGrid);
     }
     
     // Pause button
@@ -762,26 +779,10 @@ function setupEventListeners() {
         pauseBtn.addEventListener('click', togglePause);
     }
     
-    // Toggle flow vectors button
-    const toggleFlowBtn = document.getElementById('toggleFlowBtn');
-    if (toggleFlowBtn) {
-        toggleFlowBtn.addEventListener('click', toggleFlowVectors);
-    }
-    
     // Reset water button
     const resetWaterBtn = document.getElementById('resetWaterBtn');
     if (resetWaterBtn) {
         resetWaterBtn.addEventListener('click', clearWater);
-    }
-    
-    // Color scheme selector
-    const colorSchemeSelect = document.getElementById('colorScheme');
-    if (colorSchemeSelect) {
-        colorSchemeSelect.value = config.colorScheme;
-        colorSchemeSelect.addEventListener('change', function() {
-            config.colorScheme = this.value;
-            // You would need to implement color scheme changes here
-        });
     }
     
     // Window resize event
@@ -794,9 +795,9 @@ document.addEventListener('DOMContentLoaded', init);
 // Export functions for external use
 export {
     init,
-    resetTerrain,
+    resetPointGrid,
     togglePause,
     clearWater,
-    toggleFlowVectors,
-    toggleWireframe
+    toggleGrid,
+    updatePointSize
 };

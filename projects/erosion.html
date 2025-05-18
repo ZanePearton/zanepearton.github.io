@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Erosion Simulation - Three.js</title>
+    <title>Point Erosion Simulation - Three.js</title>
     <script type="importmap">
         {
           "imports": {
@@ -50,7 +50,7 @@
                     <i class="fas fa-chevron-right"></i>
                 </button>
                 <div class="controls-inner">
-                    <div class="control-title">Erosion Simulation Controls</div>
+                    <div class="control-title">Point Erosion Simulation Controls</div>
                     <div class="control-content">
                         <div class="control-group">
                             <label for="rainIntensity">Rain Intensity <span class="value-display" id="rainIntensityValue">5</span></label>
@@ -76,15 +76,18 @@
 
                         <div class="control-group">
                             <h4>Simulation Controls</h4>
-                            <button id="resetBtn">Reset Terrain</button>
+                            <button id="resetBtn">Reset Point Grid</button>
                             <button id="pauseBtn">Pause</button>
                             <button id="toggleFlowBtn">Toggle Flow Vectors</button>
                             <button id="resetWaterBtn">Clear Water</button>
                         </div>
 
                         <div class="control-group">
-                            <label for="terrainHeightSlider">Terrain Height <span class="value-display" id="terrainHeightValue">10</span></label>
-                            <input type="range" id="terrainHeightSlider" min="5" max="20" value="10" step="1">
+                            <label for="pointSizeSlider">Point Size <span class="value-display" id="pointSizeValue">0.2</span></label>
+                            <input type="range" id="pointSizeSlider" min="0.05" max="1" value="0.2" step="0.05">
+                            
+                            <label for="terrainHeightSlider">Point Height <span class="value-display" id="pointHeightValue">10</span></label>
+                            <input type="range" id="terrainHeightSlider" min="5" max="20" value="10" step="1" id="pointHeightSlider">
                             
                             <label for="boundaryRadiusSlider">Boundary Size <span class="value-display" id="boundaryRadiusValue">15</span></label>
                             <input type="range" id="boundaryRadiusSlider" min="10" max="30" value="15" step="1">
