@@ -1,4 +1,3 @@
-
 // Import necessary modules
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -22,9 +21,11 @@ let config = {
     maxSpeed: 0.5,          // Maximum speed of boids
     perceptionRadius: 5,    // How far boids can see neighbors
     boundaryRadius: 50,     // Size of the boundary sphere
-    maxTrailLength: 20,     // Maximum length of each boid's trail
+    maxTrailLength: 50,     // Maximum length of each boid's trail
     bundleDistance: 15,     // Maximum distance for edge bundling
     bundleUpdateInterval: 30, // How often to update bundled lines (frames)
+    trailWidth: 2,          // Width of the trail lines
+    bundleWidth: 0.3,       // Base width of bundled lines
     colorScheme: 'gradient',
     showTrails: true,
     showBundles: true,
@@ -232,12 +233,26 @@ class Boid {
         if (this.trail.length > 1) {
             const points = this.trail.map(p => new THREE.Vector3(p.x, p.y, p.z));
             const geometry = new THREE.BufferGeometry().setFromPoints(points);
+            
+            // Create gradient colors along the trail (newer positions are brighter)
+            const colors = [];
+            const pointCount = points.length;
+            
+            for (let i = 0; i < pointCount; i++) {
+                // Calculate intensity based on position in trail (newer = brighter)
+                const intensity = i / pointCount;
+                colors.push(0, 0.7 + 0.3 * intensity, 0.7 + 0.3 * intensity); // Cyan with increasing brightness
+            }
+            
+            geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+            
             const material = new THREE.LineBasicMaterial({ 
-                color: 0x00ffff, 
-                opacity: 0.6, 
+                vertexColors: true,
+                opacity: 0.7, 
                 transparent: true,
-                linewidth: 1
+                linewidth: 2
             });
+            
             this.trailLine = new THREE.Line(geometry, material);
             scene.add(this.trailLine);
         }
@@ -453,51 +468,145 @@ function updateBundledLines() {
     // Remove old bundled lines
     clearBundledLines();
     
-    // Create new bundled lines between nearby boids
-    const maxDistance = config.bundleDistance;
-    const bundleGroup = new THREE.Group();
+    // Group boids by proximity to create bundles
+    const bundleGroups = [];
+    const processed = new Set();
     
+    // Step 1: Find groups of nearby boids
     for (let i = 0; i < boids.length; i++) {
-        for (let j = i + 1; j < boids.length; j++) {
-            const boid1 = boids[i];
-            const boid2 = boids[j];
+        if (processed.has(i)) continue;
+        
+        const group = [i];
+        processed.add(i);
+        
+        for (let j = 0; j < boids.length; j++) {
+            if (i === j || processed.has(j)) continue;
+            
+            const distance = boids[i].mesh.position.distanceTo(boids[j].mesh.position);
+            if (distance < config.bundleDistance * 0.5) { // Tighter grouping for bundles
+                group.push(j);
+                processed.add(j);
+            }
+        }
+        
+        if (group.length > 1) {
+            bundleGroups.push(group);
+        }
+    }
+    
+    // Step 2: Create bundled paths for each group
+    bundleGroups.forEach(group => {
+        // Calculate centroid paths from each boid's trail
+        const centroidPaths = [];
+        
+        // For each position in trail length, calculate the average position of all boids in the group
+        for (let t = 0; t < config.maxTrailLength; t++) {
+            const positions = [];
+            
+            group.forEach(boidIndex => {
+                const boid = boids[boidIndex];
+                if (boid.trail[t]) {
+                    positions.push(boid.trail[t]);
+                }
+            });
+            
+            if (positions.length > 0) {
+                // Calculate average position
+                const centroid = new THREE.Vector3();
+                positions.forEach(pos => centroid.add(pos));
+                centroid.divideScalar(positions.length);
+                
+                centroidPaths.push(centroid);
+            }
+        }
+        
+        // Create smooth curve through centroid points if we have enough points
+        if (centroidPaths.length > 2) {
+            // Create a curve from points
+            const curve = new THREE.CatmullRomCurve3(centroidPaths);
+            
+            // Create tube geometry for the curve
+            const tubeGeometry = new THREE.TubeGeometry(
+                curve,
+                20,  // tubular segments
+                0.3 + 0.1 * group.length,  // tube radius based on group size
+                8,    // radial segments
+                false // closed
+            );
+            
+            // Create gradient material for the bundle
+            const colors = [];
+            const colorCount = tubeGeometry.attributes.position.count;
+            const startColor = new THREE.Color(0.2, 0.4, 0.8); // Blue
+            const endColor = new THREE.Color(0.0, 0.8, 0.8); // Cyan
+            
+            for (let i = 0; i < colorCount; i++) {
+                const t = i / colorCount;
+                const color = new THREE.Color().lerpColors(startColor, endColor, t);
+                colors.push(color.r, color.g, color.b);
+            }
+            
+            tubeGeometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+            
+            const material = new THREE.MeshPhongMaterial({
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.5,
+                shininess: 30,
+                side: THREE.DoubleSide
+            });
+            
+            const tube = new THREE.Mesh(tubeGeometry, material);
+            scene.add(tube);
+            bundledLines.push(tube);
+        }
+    });
+    
+    // Create connections between nearby groups
+    for (let i = 0; i < bundleGroups.length; i++) {
+        for (let j = i + 1; j < bundleGroups.length; j++) {
+            // Get representative boids from each group
+            const boid1 = boids[bundleGroups[i][0]];
+            const boid2 = boids[bundleGroups[j][0]];
+            
             const distance = boid1.mesh.position.distanceTo(boid2.mesh.position);
             
-            if (distance < maxDistance) {
-                // Create bundled curve
+            if (distance < config.bundleDistance * 1.5) {
+                // Create connection between groups
                 const curve = new BundledCurve(
                     boid1.mesh.position.clone(),
                     boid2.mesh.position.clone(),
-                    0.5,  // bundle amount
-                    distance * 0.2  // bundle height based on distance
+                    0.5,
+                    distance * 0.25
                 );
                 
                 // Create tube geometry for the curve
                 const tubeGeometry = new THREE.TubeGeometry(
                     curve,
-                    20,  // tubular segments
-                    0.1,  // tube radius
-                    8,    // radial segments
-                    false // closed
+                    10,  // fewer segments for connections
+                    0.2, // thinner tube
+                    6,   // fewer radial segments
+                    false // not closed
                 );
                 
                 // Create material with opacity based on distance
-                const opacity = 1 - (distance / maxDistance);
+                const opacity = 1 - (distance / (config.bundleDistance * 1.5));
                 const material = new THREE.MeshBasicMaterial({
-                    color: 0x3399ff,
+                    color: 0x66bbff,
                     transparent: true,
                     opacity: opacity * 0.3,
                     wireframe: false
                 });
                 
                 const tube = new THREE.Mesh(tubeGeometry, material);
-                bundleGroup.add(tube);
+                scene.add(tube);
                 bundledLines.push(tube);
             }
         }
     }
     
-    scene.add(bundleGroup);
+    // Update statistics
+    updateStats();
 }
 
 // Clear all bundled lines
@@ -536,6 +645,14 @@ function animate() {
         if (frameCount % config.bundleUpdateInterval === 0) {
             updateBundledLines();
         }
+    }
+
+    // Rotate camera slowly around the scene for a dynamic view
+    if (!config.paused && !controls.enabled) {
+        const cameraRotationSpeed = 0.001;
+        camera.position.x = Math.cos(Date.now() * cameraRotationSpeed) * 120;
+        camera.position.z = Math.sin(Date.now() * cameraRotationSpeed) * 120;
+        camera.lookAt(0, 0, 0);
     }
 
     // Render the scene
