@@ -1329,14 +1329,7 @@ footer {
 
 
 /* Disable fade-in animation for Projects section title and description */
-#projects .section-title {
-  opacity: 1 !important;
-  transform: translateY(0) !important;
-  visibility: visible !important;
-}
-
-#projects .section-title h2,
-#projects .section-title p {
+#projects {
   opacity: 1 !important;
   transform: translateY(0) !important;
   visibility: visible !important;
