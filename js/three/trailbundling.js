@@ -1038,3 +1038,4 @@ function setupEventListeners() {
             bundleStrengthValue.textContent = config.bundleStrength.toFixed(1);
         });
     }
+}
