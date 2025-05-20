@@ -21,7 +21,7 @@ let config = {
     boundaryRadius: 50,
     
     // Trail parameters
-    maxTrailLength: 20,
+    maxTrailLength: 1120,
     trailSeparation: 0.25,     // How much trails avoid each other
     trailAlignment: 0.15,      // How much trails align with nearby trails
     trailCohesion: 0.1,        // How much trails are attracted to each other
