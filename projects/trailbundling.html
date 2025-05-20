@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Edge Bundled Flocking in Three.js</title>
+    <title>Trail Flocking Visualization in Three.js</title>
     <script type="importmap">
         {
           "imports": {
@@ -56,7 +56,7 @@
                     <div class="control-content">
                         <!-- Flocking Control Group -->
                         <div class="control-group">
-                            <h4>Flocking Parameters</h4>
+                            <h4>Boid Parameters</h4>
                             <button id="resetBtn">Reset Simulation</button>
                             <button id="pauseBtn">Pause</button>
                             <button id="gridToggle">Toggle Grid</button>
@@ -86,19 +86,18 @@
                             <input type="range" id="maxSpeed" min="0.1" max="1.0" value="0.5" step="0.1">
                         </div>
                         
-                        <!-- Edge Bundling Control Group -->
+                        <!-- Trail Flocking Control Group -->
                         <div class="control-group">
-                            <h4>Visualization Controls</h4>
+                            <h4>Trail Controls</h4>
                             <button id="trailsToggle">Toggle Trails</button>
-                            <button id="bundlesToggle">Toggle Bundles</button>
                             
-                            <label for="bundleDistance">Bundle Distance <span class="value-display"
+                            <label for="bundleDistance">Trail Influence Radius <span class="value-display"
                                     id="bundleDistanceValue">15</span></label>
                             <input type="range" id="bundleDistance" min="5" max="30" value="15" step="1">
                             
-                            <label for="bundleStrength">Bundle Strength <span class="value-display"
-                                    id="bundleStrengthValue">0.5</span></label>
-                            <input type="range" id="bundleStrength" min="0" max="1.0" value="0.5" step="0.1">
+                            <label for="bundleStrength">Trail Flocking Strength <span class="value-display"
+                                    id="bundleStrengthValue">0.1</span></label>
+                            <input type="range" id="bundleStrength" min="0" max="0.5" value="0.1" step="0.05">
                             
                             <div class="control-row">
                                 <label for="colorScheme">Color Scheme:</label>
@@ -112,7 +111,7 @@
                         </div>
                         
                         <div class="control-group">
-                            <div id="stats">Boids: 30 | Trail Segments: 0 | Bundles: 0</div>
+                            <div id="stats">Boids: 30 | Trail Points: 0</div>
                             <div id="debug"></div>
                         </div>
                     </div>

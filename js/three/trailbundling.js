@@ -5,400 +5,50 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 // Initialize variables
 let renderer, scene, camera, controls;
 let boids = [];
-let trails = [];
-let bundledTrails = []; // For storing bundled trail data
-let bundledLines = [];
-let gridHelper, axisHelper;
+let trailsGroup = new THREE.Group(); // Group to hold all trails
 let clock = new THREE.Clock();
-let frameCount = 0;
 
 // Configuration parameters
 let config = {
-    numBoids: 30,           // Number of boids in the simulation
-    separationDistance: 2,  // Distance to maintain from neighbors
-    alignmentFactor: 0.05,  // How much to align with neighbors' direction
-    cohesionFactor: 0.005,  // How much to move toward center of neighbors
-    separationFactor: 0.1,  // How much to avoid neighbors
-    maxSpeed: 0.5,          // Maximum speed of boids
-    perceptionRadius: 5,    // How far boids can see neighbors
-    boundaryRadius: 50,     // Size of the boundary sphere
-    maxTrailLength: 20,     // Maximum length of each boid's trail
-    bundleDistance: 15,     // Maximum distance for edge bundling
-    bundleStrength: 0.5,    // How strongly trails should be bundled (0-1)
-    bundleUpdateInterval: 10, // How often to update bundled lines (frames)
+    // Boid parameters
+    numBoids: 30,
+    boidSeparation: 2,
+    boidAlignment: 0.05,
+    boidCohesion: 0.005,
+    boidSeparationForce: 0.1,
+    maxSpeed: 0.5,
+    perceptionRadius: 5,
+    boundaryRadius: 50,
+    
+    // Trail parameters
+    maxTrailLength: 20,
+    trailSeparation: 0.25,     // How much trails avoid each other
+    trailAlignment: 0.15,      // How much trails align with nearby trails
+    trailCohesion: 0.1,        // How much trails are attracted to each other
+    trailInfluenceRadius: 15,  // How far trails can influence each other
+    
+    // Visualization
     colorScheme: 'gradient',
     showTrails: true,
-    showBundles: true,
-    paused: false,          // Whether the simulation is paused
-    debug: false,           // Show debug information
+    paused: false
 };
-
-// Custom curve for edge bundling
-class BundledCurve extends THREE.Curve {
-    constructor(startPoint, endPoint, controlPoints = []) {
-        super();
-        this.startPoint = startPoint;
-        this.endPoint = endPoint;
-
-        // If control points are provided, use them
-        // Otherwise create a simple bezier with one midpoint
-        if (controlPoints.length > 0) {
-            this.controlPoints = controlPoints;
-        } else {
-            // Calculate midpoint with some offset for bundling effect
-            const midX = (startPoint.x + endPoint.x) / 2;
-            const midY = (startPoint.y + endPoint.y) / 2 + (endPoint.distanceTo(startPoint) * 0.2);
-            const midZ = (startPoint.z + endPoint.z) / 2;
-
-            this.controlPoints = [new THREE.Vector3(midX, midY, midZ)];
-        }
-    }
-
-    getPoint(t) {
-        // For simple bezier with 1 control point
-        if (this.controlPoints.length === 1) {
-            const point = new THREE.Vector3();
-
-            // Quadratic bezier curve formula
-            point.x = Math.pow(1 - t, 2) * this.startPoint.x +
-                2 * (1 - t) * t * this.controlPoints[0].x +
-                Math.pow(t, 2) * this.endPoint.x;
-
-            point.y = Math.pow(1 - t, 2) * this.startPoint.y +
-                2 * (1 - t) * t * this.controlPoints[0].y +
-                Math.pow(t, 2) * this.endPoint.y;
-
-            point.z = Math.pow(1 - t, 2) * this.startPoint.z +
-                2 * (1 - t) * t * this.controlPoints[0].z +
-                Math.pow(t, 2) * this.endPoint.z;
-
-            return point;
-        }
-        // For more complex curves with multiple control points
-        else {
-            // Use De Casteljau's algorithm for general Bezier curves
-            let points = [this.startPoint, ...this.controlPoints, this.endPoint];
-            while (points.length > 1) {
-                const nextPoints = [];
-                for (let i = 0; i < points.length - 1; i++) {
-                    nextPoints.push(new THREE.Vector3().lerpVectors(points[i], points[i + 1], t));
-                }
-                points = nextPoints;
-            }
-            return points[0];
-        }
-        // Color scheme selector
-        const colorSchemeSelect = document.getElementById('colorScheme');
-
-        if (colorSchemeSelect) {
-            colorSchemeSelect.value = config.colorScheme;
-
-            colorSchemeSelect.addEventListener('change', function () {
-                config.colorScheme = this.value;
-                updateBoidMaterials();
-            });
-        }
-
-        // Grid toggle button
-        const gridToggleButton = document.getElementById('gridToggle');
-        if (gridToggleButton) {
-            gridToggleButton.addEventListener('click', toggleGrid);
-        }
-
-        // Trails toggle button
-        const trailsToggleButton = document.getElementById('trailsToggle');
-        if (trailsToggleButton) {
-            trailsToggleButton.addEventListener('click', toggleTrails);
-        }
-
-        // Bundles toggle button
-        const bundlesToggleButton = document.getElementById('bundlesToggle');
-        if (bundlesToggleButton) {
-            bundlesToggleButton.addEventListener('click', toggleBundles);
-        }
-
-        // Reset button
-        const resetBtn = document.getElementById('resetBtn');
-        if (resetBtn) {
-            resetBtn.addEventListener('click', resetSimulation);
-        }
-
-        // Pause button
-        const pauseBtn = document.getElementById('pauseBtn');
-        if (pauseBtn) {
-            pauseBtn.addEventListener('click', togglePause);
-            pauseBtn.textContent = config.paused ? 'Resume' : 'Pause';
-        }
-    }
-
-}
-
-// Initialize the visualization once the DOM is loaded
-document.addEventListener('DOMContentLoaded', init);
-
-// Export functions for potential external use
-window.flockingSimulation = {
-        reset: resetSimulation,
-        togglePause: togglePause,
-        toggleGrid: toggleGrid,
-        toggleTrails: toggleTrails,
-        toggleBundles: toggleBundles
-    };
-
-// Class to manage bundled trail segments
-class TrailBundle {
-    constructor() {
-        this.segments = []; // Array of {start, end, weight, boidId} objects
-        this.mesh = null;
-    }
-
-    addSegment(startPoint, endPoint, boidId, weight = 1) {
-        this.segments.push({
-            start: startPoint.clone(),
-            end: endPoint.clone(),
-            boidId: boidId,
-            weight: weight
-        });
-    }
-
-    // Apply force-directed bundling
-    bundle(iterations = 5, bundleStrength = 0.5) {
-        if (this.segments.length <= 1) return;
-
-        const compatibilityThreshold = 0.6; // Threshold for considering segments compatible
-        const stepSize = 0.1; // How much to move points in each iteration
-
-        // Create internal points for each segment
-        const internalPoints = this.segments.map(() => []);
-        const numSubdivisions = 8; // Number of internal points per segment
-
-        // Initialize internal points
-        this.segments.forEach((segment, i) => {
-            for (let j = 1; j < numSubdivisions; j++) {
-                const t = j / numSubdivisions;
-                const point = new THREE.Vector3().lerpVectors(segment.start, segment.end, t);
-                internalPoints[i].push(point);
-            }
-        });
-
-        // Bundling iterations
-        for (let iter = 0; iter < iterations; iter++) {
-            // For each segment
-            for (let i = 0; i < this.segments.length; i++) {
-                const segI = this.segments[i];
-
-                // For each subdivision point
-                for (let j = 0; j < internalPoints[i].length; j++) {
-                    const pointI = internalPoints[i][j];
-                    let force = new THREE.Vector3(0, 0, 0);
-                    let totalWeight = 0;
-
-                    // Calculate forces from all other segments
-                    for (let k = 0; k < this.segments.length; k++) {
-                        if (i === k) continue;
-
-                        const segK = this.segments[k];
-
-                        // Calculate compatibility
-                        const compatibility = this.calculateCompatibility(segI, segK);
-
-                        if (compatibility > compatibilityThreshold) {
-                            // Find closest point on segment K
-                            const t = (j + 1) / (numSubdivisions + 1);
-                            const pointK = internalPoints[k][j];
-
-                            // Calculate attraction force
-                            const attractForce = new THREE.Vector3().subVectors(pointK, pointI);
-                            attractForce.multiplyScalar(compatibility * bundleStrength);
-
-                            force.add(attractForce);
-                            totalWeight += compatibility;
-                        }
-                    }
-
-                    // Apply the force
-                    if (totalWeight > 0) {
-                        force.multiplyScalar(stepSize / totalWeight);
-                        pointI.add(force);
-                    }
-                }
-            }
-        }
-
-        // Update the mesh with bundled curves
-        this.updateMesh(internalPoints);
-    }
-
-    // Calculate compatibility between two segments
-    calculateCompatibility(seg1, seg2) {
-        // Direction compatibility
-        const dir1 = new THREE.Vector3().subVectors(seg1.end, seg1.start).normalize();
-        const dir2 = new THREE.Vector3().subVectors(seg2.end, seg2.start).normalize();
-        const angleFactor = Math.abs(dir1.dot(dir2));
-
-        // Length compatibility
-        const len1 = seg1.start.distanceTo(seg1.end);
-        const len2 = seg2.start.distanceTo(seg2.end);
-        const lengthFactor = Math.min(len1, len2) / Math.max(len1, len2);
-
-        // Position compatibility - how close are the segments
-        const mid1 = new THREE.Vector3().addVectors(seg1.start, seg1.end).multiplyScalar(0.5);
-        const mid2 = new THREE.Vector3().addVectors(seg2.start, seg2.end).multiplyScalar(0.5);
-        const dist = mid1.distanceTo(mid2) / config.bundleDistance;
-        const posFactor = Math.max(0, 1 - dist);
-
-        // Visibility compatibility
-        const vis1to2 = this.calculateVisibility(seg1.start, seg1.end, seg2.start, seg2.end);
-        const vis2to1 = this.calculateVisibility(seg2.start, seg2.end, seg1.start, seg1.end);
-        const visFactor = Math.min(vis1to2, vis2to1);
-
-        // Combine factors
-        return angleFactor * lengthFactor * posFactor * visFactor;
-    }
-
-    // Calculate visibility between segments
-    calculateVisibility(p1, p2, q1, q2) {
-        // Project q1 and q2 onto line p1-p2
-        const p2minusp1 = new THREE.Vector3().subVectors(p2, p1);
-        const p1minusq1 = new THREE.Vector3().subVectors(p1, q1);
-        const p1minusq2 = new THREE.Vector3().subVectors(p1, q2);
-
-        const len = p2minusp1.length();
-        const lenSq = len * len;
-
-        if (lenSq === 0) return 0;
-
-        const projq1 = p2minusp1.dot(p1minusq1) / lenSq;
-        const projq2 = p2minusp1.dot(p1minusq2) / lenSq;
-
-        // Calculate visibility
-        const visibility = 1 - Math.max(
-            0,
-            Math.min(1, Math.max(projq1, projq2)) - Math.max(0, Math.min(projq1, projq2))
-        );
-
-        return visibility;
-    }
-
-    // Update the mesh representation with bundled curves
-    updateMesh(internalPoints) {
-        // Remove old mesh
-        if (this.mesh) {
-            scene.remove(this.mesh);
-            this.mesh.traverse((child) => {
-                if (child.geometry) child.geometry.dispose();
-                if (child.material) {
-                    if (Array.isArray(child.material)) {
-                        child.material.forEach(mat => mat.dispose());
-                    } else {
-                        child.material.dispose();
-                    }
-                }
-            });
-        }
-
-        // Create new group for all curves
-        this.mesh = new THREE.Group();
-
-        // For each segment
-        this.segments.forEach((segment, i) => {
-            // Create array of points including start, internal points, and end
-            const points = [segment.start.clone()];
-            internalPoints[i].forEach(p => points.push(p.clone()));
-            points.push(segment.end.clone());
-
-            // Create curve using these points
-            const curve = new BundledCurve(
-                segment.start,
-                segment.end,
-                internalPoints[i].map(p => p.clone())
-            );
-
-            // Create tube geometry for the curve
-            const tubeGeometry = new THREE.TubeGeometry(
-                curve,
-                20,  // tubular segments
-                0.05 + (segment.weight * 0.1),  // tube radius
-                8,    // radial segments
-                false // closed
-            );
-
-            // Determine color based on color scheme and boid ID
-            let color;
-            switch (config.colorScheme) {
-                case 'rainbow':
-                    // Distribute colors evenly across the rainbow
-                    color = new THREE.Color().setHSL(segment.boidId / config.numBoids, 1, 0.5);
-                    break;
-                case 'gradient':
-                    // Gradient from orange to purple based on position
-                    const height = (segment.start.y + config.boundaryRadius) / (config.boundaryRadius * 2);
-                    color = new THREE.Color(0xff9500).lerp(new THREE.Color(0xaf52de), height);
-                    break;
-                default:
-                    color = new THREE.Color(0x3399ff);
-            }
-
-            // Create material
-            const material = new THREE.MeshBasicMaterial({
-                color: color,
-                transparent: true,
-                opacity: 0.5,
-                wireframe: false
-            });
-
-            // Create mesh and add to group
-            const tube = new THREE.Mesh(tubeGeometry, material);
-            this.mesh.add(tube);
-        });
-
-        // Add the group to the scene
-        scene.add(this.mesh);
-    }
-
-    // Dispose of all resources
-    dispose() {
-        if (this.mesh) {
-            scene.remove(this.mesh);
-            this.mesh.traverse((child) => {
-                if (child.geometry) child.geometry.dispose();
-                if (child.material) {
-                    if (Array.isArray(child.material)) {
-                        child.material.forEach(mat => mat.dispose());
-                    } else {
-                        child.material.dispose();
-                    }
-                }
-            });
-            this.mesh = null;
-        }
-        this.segments = [];
-    }
-}
 
 // Boid class
 class Boid {
     constructor(position, velocity, id) {
-        // Store boid ID
         this.id = id;
-
+        
         // Create geometry and material for the boid
         const geometry = new THREE.ConeGeometry(0.5, 1.5, 8);
         geometry.rotateX(Math.PI / 2); // Orient cone to point in direction of travel
-
-        // Material will be set based on config
         this.mesh = new THREE.Mesh(geometry, new THREE.MeshPhongMaterial({ color: 0xffffff }));
-
-        // Set initial position
         this.mesh.position.copy(position);
-
-        // Set initial velocity
         this.velocity = velocity;
-
+        
         // Trail properties
-        this.trail = [];
+        this.trailPoints = []; // Array of trail point objects with position and velocity
         this.trailLine = null;
-
+        
         // Add to scene
         scene.add(this.mesh);
     }
@@ -411,9 +61,9 @@ class Boid {
         const { separation, alignment, cohesion } = this.calculateForces(boids);
 
         // Apply forces to velocity
-        this.velocity.add(separation.multiplyScalar(config.separationFactor));
-        this.velocity.add(alignment.multiplyScalar(config.alignmentFactor));
-        this.velocity.add(cohesion.multiplyScalar(config.cohesionFactor));
+        this.velocity.add(separation.multiplyScalar(config.boidSeparationForce));
+        this.velocity.add(alignment.multiplyScalar(config.boidAlignment));
+        this.velocity.add(cohesion.multiplyScalar(config.boidCohesion));
 
         // Limit speed
         const speed = this.velocity.length();
@@ -435,7 +85,7 @@ class Boid {
 
         // Update trail
         if (config.showTrails) {
-            this.updateTrail(oldPosition);
+            this.updateTrail();
         }
     }
 
@@ -450,7 +100,7 @@ class Boid {
         let cohesionCount = 0;
 
         const perceptionRadiusSq = config.perceptionRadius * config.perceptionRadius;
-        const separationDistanceSq = config.separationDistance * config.separationDistance;
+        const separationDistanceSq = config.boidSeparation * config.boidSeparation;
 
         boids.forEach(boid => {
             if (boid === this) return;
@@ -523,27 +173,35 @@ class Boid {
     }
 
     // Update the boid's trail
-    updateTrail(oldPosition) {
+    updateTrail() {
         // Remove old trail line
         if (this.trailLine) {
-            scene.remove(this.trailLine);
+            trailsGroup.remove(this.trailLine);
             this.trailLine.geometry.dispose();
             this.trailLine.material.dispose();
         }
 
-        // Add current position to trail
-        this.trail.push(this.mesh.position.clone());
-
+        // Add current position and velocity to trail
+        this.trailPoints.push({
+            position: this.mesh.position.clone(),
+            velocity: this.velocity.clone(),
+            originalPosition: this.mesh.position.clone(), // Reference for restoration force
+            boidId: this.id
+        });
+        
         // Limit trail length
-        if (this.trail.length > config.maxTrailLength) {
-            this.trail.shift();
+        if (this.trailPoints.length > config.maxTrailLength) {
+            this.trailPoints.shift();
         }
-
-        // Create new trail if we have enough points
-        if (this.trail.length > 1) {
-            const points = this.trail.map(p => new THREE.Vector3(p.x, p.y, p.z));
-            const geometry = new THREE.BufferGeometry().setFromPoints(points);
-
+        
+        // Apply flocking behavior to the trail points (except first point)
+        this.applyTrailFlocking();
+        
+        // Create new trail line
+        if (this.trailPoints.length > 1) {
+            // Get positions for the line
+            const positions = this.trailPoints.map(point => point.position);
+            
             // Determine color based on color scheme
             let color;
             switch (config.colorScheme) {
@@ -557,59 +215,134 @@ class Boid {
                 default:
                     color = new THREE.Color(0x00ffff);
             }
-
-            const material = new THREE.LineBasicMaterial({
-                color: color,
-                opacity: 0.4,
+            
+            // Create line material with opacity gradient
+            const material = new THREE.LineBasicMaterial({ 
+                color: color, 
+                opacity: 0.7, 
                 transparent: true,
-                linewidth: 1
+                linewidth: 2
             });
-
+            
+            // Create line geometry
+            const geometry = new THREE.BufferGeometry().setFromPoints(positions);
             this.trailLine = new THREE.Line(geometry, material);
-            scene.add(this.trailLine);
+            trailsGroup.add(this.trailLine);
         }
-
-        // If a new segment was created, add it to the collection for bundling
-        if (this.trail.length >= 2 && oldPosition) {
-            const lastIdx = this.trail.length - 1;
-            const currentPos = this.trail[lastIdx];
-            const prevPos = this.trail[lastIdx - 1];
-
-            // Only add segment if it's long enough to be meaningful
-            if (prevPos.distanceTo(currentPos) > 0.1) {
-                trails.push({
-                    start: prevPos.clone(),
-                    end: currentPos.clone(),
-                    boidId: this.id,
-                    time: Date.now() // For aging
+    }
+    
+    // Apply flocking behavior to trail points
+    applyTrailFlocking() {
+        // Skip if too few points
+        if (this.trailPoints.length < 3) return;
+        
+        // We don't move the first point (attached to boid) or last point (newest)
+        for (let i = 1; i < this.trailPoints.length - 1; i++) {
+            const point = this.trailPoints[i];
+            
+            // Initialize forces
+            const separation = new THREE.Vector3();
+            const alignment = new THREE.Vector3();
+            const cohesion = new THREE.Vector3();
+            const restoration = new THREE.Vector3();
+            
+            let separationCount = 0;
+            let alignmentCount = 0;
+            let cohesionCount = 0;
+            
+            // Influence radius squared
+            const influenceRadiusSq = config.trailInfluenceRadius * config.trailInfluenceRadius;
+            
+            // Check against all other boids' trail points
+            boids.forEach(boid => {
+                // Skip points from this boid's trail (to prevent self-interaction)
+                if (boid === this) return;
+                
+                boid.trailPoints.forEach(otherPoint => {
+                    const distSq = point.position.distanceToSquared(otherPoint.position);
+                    
+                    // Only consider points within influence radius
+                    if (distSq < influenceRadiusSq) {
+                        // Separation: avoid crowding other trails
+                        separation.add(
+                            new THREE.Vector3()
+                                .subVectors(point.position, otherPoint.position)
+                                .normalize()
+                                .divideScalar(Math.sqrt(distSq) || 1)
+                        );
+                        separationCount++;
+                        
+                        // Alignment: align with nearby trail directions
+                        alignment.add(otherPoint.velocity);
+                        alignmentCount++;
+                        
+                        // Cohesion: move toward average position of nearby points
+                        cohesion.add(otherPoint.position);
+                        cohesionCount++;
+                    }
                 });
-
-                // Limit the total number of trail segments
-                if (trails.length > config.numBoids * config.maxTrailLength) {
-                    trails.shift();
-                }
+            });
+            
+            // Calculate average forces
+            if (separationCount > 0) {
+                separation.divideScalar(separationCount).multiplyScalar(config.trailSeparation);
             }
+            
+            if (alignmentCount > 0) {
+                alignment.divideScalar(alignmentCount);
+                alignment.normalize().multiplyScalar(config.trailAlignment);
+            }
+            
+            if (cohesionCount > 0) {
+                cohesion.divideScalar(cohesionCount);
+                cohesion.sub(point.position).normalize().multiplyScalar(config.trailCohesion);
+            }
+            
+            // Restoration force: pull back toward original position
+            restoration
+                .subVectors(point.originalPosition, point.position)
+                .multiplyScalar(0.03); // Small restoration force
+            
+            // Continuity force: keep trail smooth by averaging neighbors
+            const continuity = new THREE.Vector3();
+            if (i > 0 && i < this.trailPoints.length - 1) {
+                const prev = this.trailPoints[i-1].position;
+                const next = this.trailPoints[i+1].position;
+                continuity.add(prev).add(next).divideScalar(2).sub(point.position).multiplyScalar(0.1);
+            }
+            
+            // Apply all forces to velocity
+            point.velocity.add(separation);
+            point.velocity.add(alignment);
+            point.velocity.add(cohesion);
+            point.velocity.add(restoration);
+            point.velocity.add(continuity);
+            
+            // Limit velocity
+            const speed = point.velocity.length();
+            if (speed > config.maxSpeed * 0.5) { // Trail points move slower than boids
+                point.velocity.multiplyScalar((config.maxSpeed * 0.5) / speed);
+            }
+            
+            // Update position
+            point.position.add(point.velocity.clone().multiplyScalar(0.1)); // Smaller movement for stability
         }
     }
 
-    // Update the boid's material based on color scheme
+    // Update boid's material based on color scheme
     updateMaterial(colorscheme, index, totalBoids) {
         let color;
 
         switch (colorscheme) {
             case 'rainbow':
-                // Distribute colors evenly across the rainbow
                 color = new THREE.Color().setHSL(index / totalBoids, 1, 0.5);
                 this.mesh.material = new THREE.MeshPhongMaterial({ color, shininess: 70 });
                 break;
-
             case 'gradient':
-                // Gradient from orange to purple based on position
                 const height = (this.mesh.position.y + config.boundaryRadius) / (config.boundaryRadius * 2);
                 color = new THREE.Color(0xff9500).lerp(new THREE.Color(0xaf52de), height);
                 this.mesh.material = new THREE.MeshPhongMaterial({ color, shininess: 70 });
                 break;
-
             case 'wireframe':
                 this.mesh.material = new THREE.MeshPhongMaterial({
                     color: 0xCCCCCC,
@@ -617,11 +350,9 @@ class Boid {
                     shininess: 70
                 });
                 break;
-
             case 'normals':
                 this.mesh.material = new THREE.MeshNormalMaterial();
                 break;
-
             default:
                 this.mesh.material = new THREE.MeshPhongMaterial({
                     color: 0x0088ff,
@@ -634,7 +365,7 @@ class Boid {
     dispose() {
         scene.remove(this.mesh);
         if (this.trailLine) {
-            scene.remove(this.trailLine);
+            trailsGroup.remove(this.trailLine);
             this.trailLine.geometry.dispose();
             this.trailLine.material.dispose();
         }
@@ -654,23 +385,20 @@ function init() {
     if (container) {
         container.appendChild(renderer.domElement);
     } else {
-        console.error("Canvas container not found, appending to body");
         document.body.appendChild(renderer.domElement);
     }
 
-    // Check if dark mode is active
-    const isDarkMode = document.body.classList.contains('dark-mode');
-
-    // Setup scene with appropriate background color
+    // Setup scene
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(isDarkMode ? 0x121212 : 0x000000);
+    scene.background = new THREE.Color(0x000000);
+    scene.add(trailsGroup);
 
     // Create and add a grid helper
-    gridHelper = new THREE.GridHelper(100, 20);
+    const gridHelper = new THREE.GridHelper(100, 20);
     scene.add(gridHelper);
 
     // Add axis helper to show X, Y, Z directions
-    axisHelper = new THREE.AxesHelper(10);
+    const axisHelper = new THREE.AxesHelper(10);
     scene.add(axisHelper);
 
     // Add boundary sphere (transparent)
@@ -696,11 +424,11 @@ function init() {
 
     // Add lighting
     scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-
+    
     const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
     directionalLight.position.set(1, 1, 1);
     scene.add(directionalLight);
-
+    
     const secondLight = new THREE.DirectionalLight(0xffffff, 0.5);
     secondLight.position.set(-1, 0.5, -1);
     scene.add(secondLight);
@@ -719,43 +447,21 @@ function init() {
 
     // Update statistics
     updateStats();
-
-    console.log("Edge Bundled Flocking visualization initialized");
 }
 
 // Function to toggle grid visibility
 function toggleGrid() {
-    config.showGrid = !config.showGrid;
-    if (gridHelper) {
-        gridHelper.visible = config.showGrid;
-    }
-    if (axisHelper) {
-        axisHelper.visible = config.showGrid;
-    }
+    const gridHelper = scene.children.find(child => child instanceof THREE.GridHelper);
+    const axisHelper = scene.children.find(child => child instanceof THREE.AxesHelper);
+    
+    if (gridHelper) gridHelper.visible = !gridHelper.visible;
+    if (axisHelper) axisHelper.visible = !axisHelper.visible;
 }
 
 // Function to toggle trails visibility
 function toggleTrails() {
     config.showTrails = !config.showTrails;
-
-    // Show/hide existing trails
-    boids.forEach(boid => {
-        if (boid.trailLine) {
-            boid.trailLine.visible = config.showTrails;
-        }
-    });
-}
-
-// Function to toggle bundled lines visibility
-function toggleBundles() {
-    config.showBundles = !config.showBundles;
-
-    // Show/hide existing bundled lines
-    bundledLines.forEach(bundle => {
-        if (bundle.mesh) {
-            bundle.mesh.visible = config.showBundles;
-        }
-    });
+    trailsGroup.visible = config.showTrails;
 }
 
 // Create boids with random positions and velocities
@@ -764,11 +470,13 @@ function createBoids() {
     boids.forEach(boid => boid.dispose());
     boids = [];
 
-    // Clear trails
-    trails = [];
-
-    // Clear bundled lines
-    clearBundledLines();
+    // Clear trails group
+    while (trailsGroup.children.length > 0) {
+        const object = trailsGroup.children[0];
+        object.geometry.dispose();
+        object.material.dispose();
+        trailsGroup.remove(object);
+    }
 
     // Create new boids
     for (let i = 0; i < config.numBoids; i++) {
@@ -800,43 +508,6 @@ function createBoids() {
     updateStats();
 }
 
-// Update bundled trails
-function updateBundledTrails() {
-    if (!config.showBundles || trails.length < 2) return;
-
-    // Clear old bundled lines
-    bundledLines.forEach(bundle => bundle.dispose());
-    bundledLines = [];
-
-    // Create new bundle
-    const bundle = new TrailBundle();
-
-    // Add recent trail segments
-    const now = Date.now();
-    const maxAge = 2000; // Only bundle trails that are less than 2 seconds old
-
-    trails.forEach(segment => {
-        const age = now - segment.time;
-        if (age < maxAge) {
-            // Weight decreases with age
-            const weight = 1 - (age / maxAge);
-            bundle.addSegment(segment.start, segment.end, segment.boidId, weight);
-        }
-    });
-
-    // Apply bundling
-    bundle.bundle(3, config.bundleStrength);
-
-    // Add to list of bundles
-    bundledLines.push(bundle);
-}
-
-// Clear all bundled lines
-function clearBundledLines() {
-    bundledLines.forEach(bundle => bundle.dispose());
-    bundledLines = [];
-}
-
 // Update boid materials based on color scheme
 function updateBoidMaterials() {
     boids.forEach((boid, index) => {
@@ -857,12 +528,6 @@ function animate() {
     // Update boids
     if (!config.paused) {
         boids.forEach(boid => boid.update(delta, boids));
-
-        // Update bundled trails periodically
-        frameCount++;
-        if (frameCount % config.bundleUpdateInterval === 0) {
-            updateBundledTrails();
-        }
     }
 
     // Render the scene
@@ -880,7 +545,12 @@ function onWindowResize() {
 function updateStats() {
     const statsElement = document.getElementById('stats');
     if (statsElement) {
-        statsElement.textContent = `Boids: ${boids.length} | Trail Segments: ${trails.length} | Bundles: ${bundledLines.length}`;
+        let totalTrailPoints = 0;
+        boids.forEach(boid => {
+            totalTrailPoints += boid.trailPoints.length;
+        });
+        
+        statsElement.textContent = `Boids: ${boids.length} | Trail Points: ${totalTrailPoints}`;
     }
 }
 
@@ -896,7 +566,6 @@ function togglePause() {
 // Reset the simulation
 function resetSimulation() {
     createBoids();
-    frameCount = 0;
     updateStats();
 }
 
@@ -907,9 +576,6 @@ function setupEventListeners() {
     const boidsValue = document.getElementById('numBoidsValue');
 
     if (boidsSlider && boidsValue) {
-        boidsSlider.min = 10;
-        boidsSlider.max = 100;
-        boidsSlider.step = 5;
         boidsSlider.value = config.numBoids;
         boidsValue.textContent = config.numBoids;
 
@@ -920,20 +586,17 @@ function setupEventListeners() {
         });
     }
 
-    // Separation distance slider
+    // Boid separation slider
     const separationSlider = document.getElementById('separationDistance');
     const separationValue = document.getElementById('separationValue');
 
     if (separationSlider && separationValue) {
-        separationSlider.min = 0.5;
-        separationSlider.max = 5;
-        separationSlider.step = 0.1;
-        separationSlider.value = config.separationDistance;
-        separationValue.textContent = config.separationDistance.toFixed(1);
+        separationSlider.value = config.boidSeparation;
+        separationValue.textContent = config.boidSeparation.toFixed(1);
 
         separationSlider.addEventListener('input', function () {
-            config.separationDistance = parseFloat(this.value);
-            separationValue.textContent = config.separationDistance.toFixed(1);
+            config.boidSeparation = parseFloat(this.value);
+            separationValue.textContent = config.boidSeparation.toFixed(1);
         });
     }
 
@@ -942,15 +605,12 @@ function setupEventListeners() {
     const alignmentValue = document.getElementById('alignmentValue');
 
     if (alignmentSlider && alignmentValue) {
-        alignmentSlider.min = 0;
-        alignmentSlider.max = 0.2;
-        alignmentSlider.step = 0.01;
-        alignmentSlider.value = config.alignmentFactor;
-        alignmentValue.textContent = config.alignmentFactor.toFixed(2);
+        alignmentSlider.value = config.boidAlignment;
+        alignmentValue.textContent = config.boidAlignment.toFixed(2);
 
         alignmentSlider.addEventListener('input', function () {
-            config.alignmentFactor = parseFloat(this.value);
-            alignmentValue.textContent = config.alignmentFactor.toFixed(2);
+            config.boidAlignment = parseFloat(this.value);
+            alignmentValue.textContent = config.boidAlignment.toFixed(2);
         });
     }
 
@@ -959,15 +619,12 @@ function setupEventListeners() {
     const cohesionValue = document.getElementById('cohesionValue');
 
     if (cohesionSlider && cohesionValue) {
-        cohesionSlider.min = 0;
-        cohesionSlider.max = 0.02;
-        cohesionSlider.step = 0.001;
-        cohesionSlider.value = config.cohesionFactor;
-        cohesionValue.textContent = config.cohesionFactor.toFixed(3);
+        cohesionSlider.value = config.boidCohesion;
+        cohesionValue.textContent = config.boidCohesion.toFixed(3);
 
         cohesionSlider.addEventListener('input', function () {
-            config.cohesionFactor = parseFloat(this.value);
-            cohesionValue.textContent = config.cohesionFactor.toFixed(3);
+            config.boidCohesion = parseFloat(this.value);
+            cohesionValue.textContent = config.boidCohesion.toFixed(3);
         });
     }
 
@@ -976,15 +633,12 @@ function setupEventListeners() {
     const separationFactorValue = document.getElementById('separationFactorValue');
 
     if (separationFactorSlider && separationFactorValue) {
-        separationFactorSlider.min = 0;
-        separationFactorSlider.max = 0.5;
-        separationFactorSlider.step = 0.01;
-        separationFactorSlider.value = config.separationFactor;
-        separationFactorValue.textContent = config.separationFactor.toFixed(2);
+        separationFactorSlider.value = config.boidSeparationForce;
+        separationFactorValue.textContent = config.boidSeparationForce.toFixed(2);
 
         separationFactorSlider.addEventListener('input', function () {
-            config.separationFactor = parseFloat(this.value);
-            separationFactorValue.textContent = config.separationFactor.toFixed(2);
+            config.boidSeparationForce = parseFloat(this.value);
+            separationFactorValue.textContent = config.boidSeparationForce.toFixed(2);
         });
     }
 
@@ -993,9 +647,6 @@ function setupEventListeners() {
     const maxSpeedValue = document.getElementById('maxSpeedValue');
 
     if (maxSpeedSlider && maxSpeedValue) {
-        maxSpeedSlider.min = 0.1;
-        maxSpeedSlider.max = 1.0;
-        maxSpeedSlider.step = 0.1;
         maxSpeedSlider.value = config.maxSpeed;
         maxSpeedValue.textContent = config.maxSpeed.toFixed(1);
 
@@ -1005,37 +656,83 @@ function setupEventListeners() {
         });
     }
 
-    // Bundle distance slider
+    // Trail influence slider
     const bundleDistanceSlider = document.getElementById('bundleDistance');
     const bundleDistanceValue = document.getElementById('bundleDistanceValue');
 
     if (bundleDistanceSlider && bundleDistanceValue) {
-        bundleDistanceSlider.min = 5;
-        bundleDistanceSlider.max = 30;
-        bundleDistanceSlider.step = 1;
-        bundleDistanceSlider.value = config.bundleDistance;
-        bundleDistanceValue.textContent = config.bundleDistance;
+        bundleDistanceSlider.value = config.trailInfluenceRadius;
+        bundleDistanceValue.textContent = config.trailInfluenceRadius;
 
         bundleDistanceSlider.addEventListener('input', function () {
-            config.bundleDistance = parseFloat(this.value);
-            bundleDistanceValue.textContent = config.bundleDistance;
+            config.trailInfluenceRadius = parseFloat(this.value);
+            bundleDistanceValue.textContent = config.trailInfluenceRadius;
         });
     }
-
-    // Bundle strength slider
+    
+    // Trail bundling strength slider
     const bundleStrengthSlider = document.getElementById('bundleStrength');
     const bundleStrengthValue = document.getElementById('bundleStrengthValue');
 
     if (bundleStrengthSlider && bundleStrengthValue) {
-        bundleStrengthSlider.min = 0;
-        bundleStrengthSlider.max = 1;
-        bundleStrengthSlider.step = 0.1;
-        bundleStrengthSlider.value = config.bundleStrength;
-        bundleStrengthValue.textContent = config.bundleStrength.toFixed(1);
+        bundleStrengthSlider.value = config.trailCohesion;
+        bundleStrengthValue.textContent = config.trailCohesion.toFixed(1);
 
         bundleStrengthSlider.addEventListener('input', function () {
-            config.bundleStrength = parseFloat(this.value);
-            bundleStrengthValue.textContent = config.bundleStrength.toFixed(1);
+            // Update all trail flocking parameters proportionally
+            const value = parseFloat(this.value);
+            config.trailCohesion = value;
+            config.trailAlignment = value * 1.5;
+            config.trailSeparation = value * 2.5;
+            bundleStrengthValue.textContent = value.toFixed(1);
         });
     }
+
+    // Color scheme selector
+    const colorSchemeSelect = document.getElementById('colorScheme');
+
+    if (colorSchemeSelect) {
+        colorSchemeSelect.value = config.colorScheme;
+
+        colorSchemeSelect.addEventListener('change', function () {
+            config.colorScheme = this.value;
+            updateBoidMaterials();
+        });
+    }
+
+    // Grid toggle button
+    const gridToggleButton = document.getElementById('gridToggle');
+    if (gridToggleButton) {
+        gridToggleButton.addEventListener('click', toggleGrid);
+    }
+
+    // Trails toggle button
+    const trailsToggleButton = document.getElementById('trailsToggle');
+    if (trailsToggleButton) {
+        trailsToggleButton.addEventListener('click', toggleTrails);
+    }
+
+    // Reset button
+    const resetBtn = document.getElementById('resetBtn');
+    if (resetBtn) {
+        resetBtn.addEventListener('click', resetSimulation);
+    }
+
+    // Pause button
+    const pauseBtn = document.getElementById('pauseBtn');
+    if (pauseBtn) {
+        pauseBtn.addEventListener('click', togglePause);
+        pauseBtn.textContent = config.paused ? 'Resume' : 'Pause';
+    }
 }
+
+// Initialize the visualization once the DOM is loaded
+document.addEventListener('DOMContentLoaded', init);
+
+// Export functions for potential external use
+window.flockingSimulation = {
+    reset: resetSimulation,
+    togglePause: togglePause,
+    toggleGrid: toggleGrid,
+    toggleTrails: toggleTrails
+};
