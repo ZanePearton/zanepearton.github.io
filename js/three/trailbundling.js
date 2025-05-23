@@ -1,364 +1,504 @@
-// Import necessary modules
-import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-// Initialize variables
+import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.module.min.js';
+
+// Core variables
 let renderer, scene, camera, controls;
 let boids = [];
-let gridHelper, axisHelper, boundaryBox;
+let gridHelper, boundaryBox;
 let clock = new THREE.Clock();
+let frameCount = 0;
+let lastFPS = 0;
 
-// Configuration parameters
+// Configuration
 let config = {
-    numBoids: 100,          // Number of boids in the simulation
-    separationDistance: 2,  // Distance to maintain from neighbors
-    alignmentFactor: 0.05,  // How much to align with neighbors' direction
-    cohesionFactor: 0.005,  // How much to move toward center of neighbors
-    separationFactor: 0.1,  // How much to avoid neighbors
-    maxSpeed: 5,          // Maximum speed of boids
-    perceptionRadius: 5,    // How far boids can see neighbors
-    boundarySize: 15,       // Size of the boundary cube (half-width)
-    colorScheme: 'gradient',
-    rotationSpeed: 1.0,
+    numBoids: 80,
+    maxSpeed: 2.0,
+    boundarySize: 15,
     showGrid: true,
-    paused: false,          // Whether the simulation is paused
-    debug: false,           // Show debug information
-    adaptiveSmooth: false,  // Use adaptive smoothing
-    speed: 100,             // Update speed in ms
-    collisionChecks: 100    // Number of collision checks per frame
+    showTrails: true,
+    paused: false,
+
+    // Swarm-based edge bundling
+    edgeBundling: true,
+    bundlingMode: 'realtime', // realtime, static, hybrid, magnetic
+    bundlingStrength: 0.8,
+    bundlingRadius: 4.0,
+    velocityWeight: 0.6,
+    densityThreshold: 3,
+    smoothingFactor: 0.3,
+    bundlingIterations: 2,
+    adaptiveBundling: false,
+    hierarchicalBundling: false,
+    trailDecay: 0.02,
+    magneticForce: 0.5,
+
+    // Trail visualization
+    trailLength: 60,
+    trailOpacity: 0.8,
+    colorScheme: 'velocity'
 };
 
-// Boid class
-class Boid {
+// Simple OrbitControls
+class OrbitControls {
+    constructor(camera, domElement) {
+        this.camera = camera;
+        this.domElement = domElement;
+        this.enabled = true;
+        this.enableDamping = true;
+        this.dampingFactor = 0.1;
+
+        this.spherical = new THREE.Spherical();
+        this.sphericalDelta = new THREE.Spherical();
+        this.target = new THREE.Vector3();
+        this.offset = new THREE.Vector3();
+
+        this.isDown = false;
+        this.rotateSpeed = 1.0;
+        this.lastPosition = new THREE.Vector2();
+
+        this.setupEventListeners();
+        this.update();
+    }
+
+    setupEventListeners() {
+        this.domElement.addEventListener('mousedown', (e) => {
+            this.isDown = true;
+            this.lastPosition.set(e.clientX, e.clientY);
+        });
+
+        this.domElement.addEventListener('mousemove', (e) => {
+            if (!this.isDown) return;
+
+            const deltaX = e.clientX - this.lastPosition.x;
+            const deltaY = e.clientY - this.lastPosition.y;
+
+            this.sphericalDelta.theta -= deltaX * 0.01 * this.rotateSpeed;
+            this.sphericalDelta.phi -= deltaY * 0.01 * this.rotateSpeed;
+
+            this.lastPosition.set(e.clientX, e.clientY);
+        });
+
+        this.domElement.addEventListener('mouseup', () => {
+            this.isDown = false;
+        });
+
+        this.domElement.addEventListener('wheel', (e) => {
+            const scale = e.deltaY > 0 ? 1.1 : 0.9;
+            this.camera.position.multiplyScalar(scale);
+        });
+    }
+
+    update() {
+        this.offset.copy(this.camera.position).sub(this.target);
+        this.spherical.setFromVector3(this.offset);
+
+        this.spherical.theta += this.sphericalDelta.theta;
+        this.spherical.phi += this.sphericalDelta.phi;
+
+        this.spherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, this.spherical.phi));
+
+        this.offset.setFromSpherical(this.spherical);
+        this.camera.position.copy(this.target).add(this.offset);
+        this.camera.lookAt(this.target);
+
+        if (this.enableDamping) {
+            this.sphericalDelta.theta *= (1 - this.dampingFactor);
+            this.sphericalDelta.phi *= (1 - this.dampingFactor);
+        }
+    }
+}
+
+// Enhanced Trail class with swarm-based bundling
+class SwarmTrail {
+    constructor(boid, color) {
+        this.boid = boid;
+        this.originalPositions = [];
+        this.bundledPositions = [];
+        this.velocities = [];
+        this.densities = [];
+        this.bundlingWeights = [];
+
+        this.geometry = new THREE.BufferGeometry();
+        this.material = new THREE.LineBasicMaterial({
+            color: color,
+            transparent: true,
+            opacity: config.trailOpacity,
+            vertexColors: true
+        });
+        this.line = new THREE.Line(this.geometry, this.material);
+        scene.add(this.line);
+
+        this.lastBundleTime = 0;
+        this.bundleInterval = 1000 / 30; // 30 FPS for bundling updates
+    }
+
+    addPoint(position, velocity) {
+        this.originalPositions.push(position.clone());
+        this.velocities.push(velocity.clone());
+        this.densities.push(0);
+        this.bundlingWeights.push(0);
+
+        // Limit trail length
+        if (this.originalPositions.length > config.trailLength) {
+            this.originalPositions.shift();
+            this.velocities.shift();
+            this.densities.shift();
+            this.bundlingWeights.shift();
+        }
+
+        // Apply decay to older points
+        for (let i = 0; i < this.originalPositions.length - 1; i++) {
+            const age = (this.originalPositions.length - 1 - i) / this.originalPositions.length;
+            this.bundlingWeights[i] *= (1 - config.trailDecay * age);
+        }
+    }
+
+    // Swarm-based real-time bundling
+    updateSwarmBundling(allBoids, currentTime) {
+        if (!config.edgeBundling) {
+            this.bundledPositions = [...this.originalPositions];
+            this.updateGeometry();
+            return;
+        }
+
+        if (currentTime - this.lastBundleTime < this.bundleInterval) return;
+        this.lastBundleTime = currentTime;
+
+        this.bundledPositions = [];
+
+        for (let i = 0; i < this.originalPositions.length; i++) {
+            const currentPos = this.originalPositions[i].clone();
+            const currentVel = this.velocities[i] || new THREE.Vector3();
+
+            let bundlingForce = new THREE.Vector3();
+            let totalInfluence = 0;
+            let localDensity = 0;
+
+            // Find nearby trails and calculate swarm influence
+            allBoids.forEach(otherBoid => {
+                if (otherBoid === this.boid) return;
+
+                const otherTrail = otherBoid.trail;
+                if (!otherTrail || !otherTrail.originalPositions) return;
+
+                // Find closest point on other trail
+                let closestPoint = null;
+                let closestVelocity = null;
+                let minDistance = Infinity;
+
+                for (let j = 0; j < otherTrail.originalPositions.length; j++) {
+                    const distance = currentPos.distanceTo(otherTrail.originalPositions[j]);
+                    if (distance < minDistance && distance < config.bundlingRadius) {
+                        minDistance = distance;
+                        closestPoint = otherTrail.originalPositions[j];
+                        closestVelocity = otherTrail.velocities[j] || new THREE.Vector3();
+                        localDensity++;
+                    }
+                }
+
+                if (closestPoint && minDistance < config.bundlingRadius) {
+                    // Distance-based weight
+                    const distanceWeight = 1.0 - (minDistance / config.bundlingRadius);
+
+                    // Velocity alignment weight
+                    const velocityAlignment = currentVel.dot(closestVelocity) /
+                        (currentVel.length() * closestVelocity.length() + 0.001);
+                    const velocityWeight = (velocityAlignment + 1) * 0.5; // Normalize to 0-1
+
+                    // Combined weight
+                    const influence = distanceWeight *
+                        (1 - config.velocityWeight + config.velocityWeight * velocityWeight);
+
+                    if (influence > 0) {
+                        const attraction = new THREE.Vector3()
+                            .subVectors(closestPoint, currentPos)
+                            .multiplyScalar(influence);
+                        bundlingForce.add(attraction);
+                        totalInfluence += influence;
+                    }
+                }
+            });
+
+            // Store density for visualization
+            this.densities[i] = localDensity;
+
+            // Apply bundling based on mode
+            if (totalInfluence > 0 && localDensity >= config.densityThreshold) {
+                bundlingForce.divideScalar(totalInfluence);
+
+                let bundlingStrength = config.bundlingStrength;
+
+                // Adaptive bundling strength based on density
+                if (config.adaptiveBundling) {
+                    bundlingStrength *= Math.min(localDensity / config.densityThreshold, 2.0);
+                }
+
+                // Apply different bundling modes
+                switch (config.bundlingMode) {
+                    case 'realtime':
+                        bundlingForce.multiplyScalar(bundlingStrength);
+                        break;
+                    case 'magnetic':
+                        // Magnetic attraction with falloff
+                        const magneticStrength = config.magneticForce / (1 + localDensity * 0.1);
+                        bundlingForce.multiplyScalar(bundlingStrength * magneticStrength);
+                        break;
+                    case 'hybrid':
+                        // Combine velocity-based and position-based bundling
+                        const velocityComponent = currentVel.clone().normalize().multiplyScalar(0.3);
+                        bundlingForce.add(velocityComponent);
+                        bundlingForce.multiplyScalar(bundlingStrength * 0.8);
+                        break;
+                    default:
+                        bundlingForce.multiplyScalar(bundlingStrength);
+                }
+
+                // Smooth the bundling force
+                if (i > 0 && this.bundlingWeights[i - 1] > 0) {
+                    const prevForce = this.bundledPositions[i - 1].clone().sub(this.originalPositions[i - 1]);
+                    bundlingForce.lerp(prevForce, config.smoothingFactor);
+                }
+
+                currentPos.add(bundlingForce);
+                this.bundlingWeights[i] = totalInfluence;
+            } else {
+                this.bundlingWeights[i] = 0;
+            }
+
+            this.bundledPositions.push(currentPos);
+        }
+
+        this.updateGeometry();
+    }
+
+    updateGeometry() {
+        if (this.bundledPositions.length < 2) return;
+
+        const positions = [];
+        const colors = [];
+
+        for (let i = 0; i < this.bundledPositions.length; i++) {
+            const pos = this.bundledPositions[i];
+            positions.push(pos.x, pos.y, pos.z);
+
+            // Color based on scheme
+            let color = this.getColorForPoint(i);
+            colors.push(color.r, color.g, color.b);
+        }
+
+        this.geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+        this.geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+        this.geometry.setDrawRange(0, this.bundledPositions.length);
+    }
+
+    getColorForPoint(index) {
+        switch (config.colorScheme) {
+            case 'velocity':
+                if (this.velocities[index]) {
+                    const speed = this.velocities[index].length() / config.maxSpeed;
+                    return new THREE.Color().setHSL(0.7 - speed * 0.5, 1, 0.5);
+                }
+                break;
+            case 'density':
+                const density = Math.min(this.densities[index] / 10, 1);
+                return new THREE.Color().setHSL(0.3 - density * 0.3, 1, 0.4 + density * 0.4);
+            case 'bundling':
+                const bundling = this.bundlingWeights[index];
+                return new THREE.Color().setHSL(0.8 - bundling * 0.6, 1, 0.3 + bundling * 0.5);
+            case 'rainbow':
+                return new THREE.Color().setHSL(index / this.bundledPositions.length, 1, 0.5);
+            case 'gradient':
+                const ratio = index / this.bundledPositions.length;
+                return new THREE.Color(0xff9500).lerp(new THREE.Color(0xaf52de), ratio);
+        }
+        return new THREE.Color(0xffffff);
+    }
+
+    setVisible(visible) {
+        this.line.visible = visible && config.showTrails;
+    }
+
+    clear() {
+        this.originalPositions = [];
+        this.bundledPositions = [];
+        this.velocities = [];
+        this.densities = [];
+        this.bundlingWeights = [];
+        this.updateGeometry();
+    }
+
+    dispose() {
+        scene.remove(this.line);
+        this.geometry.dispose();
+        this.material.dispose();
+    }
+}
+
+// Enhanced Boid class
+class SwarmBoid {
     constructor(position, velocity) {
-        // Create geometry and material for the boid
-        const geometry = new THREE.ConeGeometry(0.5, 1.5, 8);
-        geometry.rotateX(Math.PI / 2); // Orient cone to point in direction of travel
+        const geometry = new THREE.ConeGeometry(0.15, 0.6, 6);
+        geometry.rotateX(Math.PI / 2);
 
-        // Material will be set based on config
         this.mesh = new THREE.Mesh(geometry, new THREE.MeshPhongMaterial({ color: 0xffffff }));
-
-        // Set initial position
         this.mesh.position.copy(position);
+        this.velocity = velocity.clone();
+        this.acceleration = new THREE.Vector3();
 
-        // Set initial velocity
-        this.velocity = velocity;
-
-        // Add to scene
+        this.trail = new SwarmTrail(this, 0xffffff);
         scene.add(this.mesh);
     }
 
-    // Update boid position and orientation
-    update(delta, boids) {
+    update(delta, allBoids, currentTime) {
         if (config.paused) return;
 
-        // Calculate steering forces
-        const { separation, alignment, cohesion } = this.calculateForces(boids);
-
-        // Limit force magnitudes to prevent explosive behavior
-        const maxForce = 0.1;
-        
-        if (separation.length() > maxForce) {
-            separation.normalize().multiplyScalar(maxForce);
-        }
-        if (alignment.length() > maxForce) {
-            alignment.normalize().multiplyScalar(maxForce);
-        }
-        if (cohesion.length() > maxForce) {
-            cohesion.normalize().multiplyScalar(maxForce);
-        }
-
-        // Apply forces to velocity
-        this.velocity.add(separation.multiplyScalar(config.separationFactor));
-        this.velocity.add(alignment.multiplyScalar(config.alignmentFactor));
-        this.velocity.add(cohesion.multiplyScalar(config.cohesionFactor));
-
-        // Apply boundary avoidance BEFORE limiting speed
+        // Basic flocking behavior
+        this.acceleration.set(0, 0, 0);
+        this.applyFlockingForces(allBoids);
         this.enforceBoundary();
 
-        // Limit speed
-        const speed = this.velocity.length();
-        if (speed > config.maxSpeed) {
-            this.velocity.multiplyScalar(config.maxSpeed / speed);
+        // Update physics
+        this.velocity.add(this.acceleration);
+        if (this.velocity.length() > config.maxSpeed) {
+            this.velocity.normalize().multiplyScalar(config.maxSpeed);
         }
 
-        // Apply adaptive smoothing
-        if (config.adaptiveSmooth) {
-            const obstacles = boids.filter(b => b !== this &&
-                b.mesh.position.distanceTo(this.mesh.position) < config.separationDistance * 1.5);
+        this.mesh.position.add(this.velocity.clone().multiplyScalar(delta * 3));
 
-            if (obstacles.length > 5) { // Crowded environment
-                this.velocity.multiplyScalar(0.9); // Slow down in crowded areas
-            }
+        // Update trail with swarm bundling
+        if (frameCount % 2 === 0) { // Every other frame
+            this.trail.addPoint(this.mesh.position, this.velocity);
+            this.trail.updateSwarmBundling(allBoids, currentTime);
         }
 
-        // Update position with reduced multiplier
-        this.mesh.position.add(this.velocity.clone().multiplyScalar(delta));
-
-        // Set orientation to match velocity
+        // Orient boid
         if (this.velocity.lengthSq() > 0.001) {
-            this.mesh.lookAt(this.mesh.position.clone().add(this.velocity));
+            const lookTarget = this.mesh.position.clone().add(this.velocity.clone().normalize());
+            this.mesh.lookAt(lookTarget);
         }
     }
 
-    // Calculate steering forces based on neighboring boids
-    calculateForces(boids) {
+    applyFlockingForces(boids) {
         const separation = new THREE.Vector3();
         const alignment = new THREE.Vector3();
         const cohesion = new THREE.Vector3();
 
-        let separationCount = 0;
-        let alignmentCount = 0;
-        let cohesionCount = 0;
+        let count = 0;
 
-        const perceptionRadiusSq = config.perceptionRadius * config.perceptionRadius;
-        const separationDistanceSq = config.separationDistance * config.separationDistance;
-
-        // Limit collision checks for performance
-        const checkBoids = boids.slice(0, config.collisionChecks);
-
-        checkBoids.forEach(boid => {
+        boids.forEach(boid => {
             if (boid === this) return;
 
-            const distance = this.mesh.position.distanceToSquared(boid.mesh.position);
+            const distance = this.mesh.position.distanceTo(boid.mesh.position);
+            if (distance > 0 && distance < 5) {
+                // Separation
+                if (distance < 2) {
+                    const diff = new THREE.Vector3().subVectors(this.mesh.position, boid.mesh.position);
+                    diff.normalize().divideScalar(distance);
+                    separation.add(diff);
+                }
 
-            // Separation: avoid crowding neighbors
-            if (distance < separationDistanceSq) {
-                const diff = new THREE.Vector3().subVectors(this.mesh.position, boid.mesh.position);
-                diff.normalize().divideScalar(Math.sqrt(distance) || 1);
-                separation.add(diff);
-                separationCount++;
-            }
-
-            // Only consider boids within perception radius for alignment and cohesion
-            if (distance < perceptionRadiusSq) {
-                // Alignment: steer towards average heading of neighbors
+                // Alignment and cohesion
                 alignment.add(boid.velocity);
-                alignmentCount++;
-
-                // Cohesion: steer towards center of mass of neighbors
                 cohesion.add(boid.mesh.position);
-                cohesionCount++;
+                count++;
             }
         });
 
-        // Calculate average for each force
-        if (separationCount > 0) {
-            separation.divideScalar(separationCount);
-            if (separation.lengthSq() > 0) {
-                separation.normalize().multiplyScalar(config.maxSpeed);
-                separation.sub(this.velocity);
-            }
+        if (count > 0) {
+            alignment.divideScalar(count).normalize().multiplyScalar(config.maxSpeed).sub(this.velocity).clampScalar(-0.3, 0.3);
+            cohesion.divideScalar(count).sub(this.mesh.position).normalize().multiplyScalar(config.maxSpeed).sub(this.velocity).clampScalar(-0.3, 0.3);
         }
 
-        if (alignmentCount > 0) {
-            alignment.divideScalar(alignmentCount);
-            if (alignment.lengthSq() > 0) {
-                alignment.normalize().multiplyScalar(config.maxSpeed);
-                alignment.sub(this.velocity);
-            }
+        if (separation.lengthSq() > 0) {
+            separation.normalize().multiplyScalar(config.maxSpeed).sub(this.velocity).clampScalar(-0.5, 0.5);
         }
 
-        if (cohesionCount > 0) {
-            cohesion.divideScalar(cohesionCount);
-            cohesion.sub(this.mesh.position);
-            if (cohesion.lengthSq() > 0) {
-                cohesion.normalize().multiplyScalar(config.maxSpeed);
-                cohesion.sub(this.velocity);
-            }
-        }
-
-        return { separation, alignment, cohesion };
+        this.acceleration.add(separation.multiplyScalar(0.3));
+        this.acceleration.add(alignment.multiplyScalar(0.1));
+        this.acceleration.add(cohesion.multiplyScalar(0.1));
     }
 
-    // Keep boids within boundary cube
     enforceBoundary() {
-        const position = this.mesh.position;
-        const boundaryForce = new THREE.Vector3();
-        const boundaryStrength = 2.0; // Increased from 0.5
-        const margin = 2.0; // Add margin for earlier force application
+        const pos = this.mesh.position;
+        const margin = 3;
 
-        // Check each axis and apply force if near boundary
-        if (position.x > config.boundarySize - margin) {
-            boundaryForce.x = -(position.x - (config.boundarySize - margin)) * boundaryStrength;
-        } else if (position.x < -config.boundarySize + margin) {
-            boundaryForce.x = -(-config.boundarySize + margin - position.x) * boundaryStrength;
+        if (pos.x > config.boundarySize - margin) this.acceleration.x -= 0.5;
+        if (pos.x < -config.boundarySize + margin) this.acceleration.x += 0.5;
+        if (pos.y > config.boundarySize - margin) this.acceleration.y -= 0.5;
+        if (pos.y < -config.boundarySize + margin) this.acceleration.y += 0.5;
+        if (pos.z > config.boundarySize - margin) this.acceleration.z -= 0.5;
+        if (pos.z < -config.boundarySize + margin) this.acceleration.z += 0.5;
+
+        // Wrap around
+        if (Math.abs(pos.x) > config.boundarySize + 1) {
+            pos.x = -Math.sign(pos.x) * (config.boundarySize + 1);
+            this.trail.clear();
         }
-
-        if (position.y > config.boundarySize - margin) {
-            boundaryForce.y = -(position.y - (config.boundarySize - margin)) * boundaryStrength;
-        } else if (position.y < -config.boundarySize + margin) {
-            boundaryForce.y = -(-config.boundarySize + margin - position.y) * boundaryStrength;
+        if (Math.abs(pos.y) > config.boundarySize + 1) {
+            pos.y = -Math.sign(pos.y) * (config.boundarySize + 1);
+            this.trail.clear();
         }
-
-        if (position.z > config.boundarySize - margin) {
-            boundaryForce.z = -(position.z - (config.boundarySize - margin)) * boundaryStrength;
-        } else if (position.z < -config.boundarySize + margin) {
-            boundaryForce.z = -(-config.boundarySize + margin - position.z) * boundaryStrength;
-        }
-
-        // Hard boundary enforcement as safety net
-        if (Math.abs(position.x) > config.boundarySize) {
-            position.x = Math.sign(position.x) * config.boundarySize;
-            this.velocity.x *= -0.5; // Bounce back
-        }
-        if (Math.abs(position.y) > config.boundarySize) {
-            position.y = Math.sign(position.y) * config.boundarySize;
-            this.velocity.y *= -0.5;
-        }
-        if (Math.abs(position.z) > config.boundarySize) {
-            position.z = Math.sign(position.z) * config.boundarySize;
-            this.velocity.z *= -0.5;
-        }
-
-        this.velocity.add(boundaryForce);
-    }
-
-    // Update the boid's material based on color scheme
-    updateMaterial(colorscheme, index, totalBoids) {
-        let color;
-
-        switch (colorscheme) {
-            case 'rainbow':
-                // Distribute colors evenly across the rainbow
-                color = new THREE.Color().setHSL(index / totalBoids, 1, 0.5);
-                this.mesh.material = new THREE.MeshPhongMaterial({ color, shininess: 70 });
-                break;
-
-            case 'gradient':
-                // Gradient from orange to purple based on position
-                const height = (this.mesh.position.y + config.boundarySize) / (config.boundarySize * 2);
-                color = new THREE.Color(0xff9500).lerp(new THREE.Color(0xaf52de), height);
-                this.mesh.material = new THREE.MeshPhongMaterial({ color, shininess: 70 });
-                break;
-
-            case 'wireframe':
-                this.mesh.material = new THREE.MeshPhongMaterial({
-                    color: 0xCCCCCC,
-                    wireframe: true,
-                    shininess: 70
-                });
-                break;
-
-            case 'normals':
-                this.mesh.material = new THREE.MeshNormalMaterial();
-                break;
-
-            default:
-                this.mesh.material = new THREE.MeshPhongMaterial({
-                    color: 0x0088ff,
-                    shininess: 70
-                });
+        if (Math.abs(pos.z) > config.boundarySize + 1) {
+            pos.z = -Math.sign(pos.z) * (config.boundarySize + 1);
+            this.trail.clear();
         }
     }
 
-    // Remove boid from scene
     dispose() {
         scene.remove(this.mesh);
         this.mesh.geometry.dispose();
         this.mesh.material.dispose();
+        this.trail.dispose();
     }
 }
 
-// Initialize the visualization
+// Initialize visualization
 function init() {
-    // Setup renderer
+    // Renderer
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(window.innerWidth, window.innerHeight);
+    document.getElementById('canvas-container').appendChild(renderer.domElement);
 
-    const container = document.getElementById('canvas-container');
-    if (container) {
-        container.appendChild(renderer.domElement);
-    } else {
-        console.error("Canvas container not found, appending to body");
-        document.body.appendChild(renderer.domElement);
-    }
-
-    // Check if dark mode is active
-    const isDarkMode = document.body.classList.contains('dark-mode');
-
-    // Setup scene with appropriate background color
+    // Scene
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(isDarkMode ? 0x121212 : 0xffffff);
+    scene.background = new THREE.Color(0x111111);
 
-    // Create and add a grid helper
-    gridHelper = new THREE.GridHelper(config.boundarySize * 2, 20);
+    // Grid
+    gridHelper = new THREE.GridHelper(config.boundarySize * 2, 20, 0x333333, 0x333333);
     scene.add(gridHelper);
 
-    // Add axis helper to show X, Y, Z directions
-    axisHelper = new THREE.AxesHelper(10);
-    scene.add(axisHelper);
+    // Boundary
+    updateBoundaryBox();
 
-    // Add boundary cube (wireframe)
-    const boundaryGeometry = new THREE.BoxGeometry(
-        config.boundarySize * 2, 
-        config.boundarySize * 2, 
-        config.boundarySize * 2
-    );
-    const boundaryMaterial = new THREE.MeshBasicMaterial({
-        color: 0x888888,
-        transparent: true,
-        opacity: 0.2,
-        wireframe: true
-    });
-    boundaryBox = new THREE.Mesh(boundaryGeometry, boundaryMaterial);
-    scene.add(boundaryBox);
-
-    // Setup camera
+    // Camera
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.set(25, 25, 25);
-    camera.lookAt(0, 0, 0);
+    camera.position.set(20, 20, 20);
 
-    // Setup controls
+    // Controls
     controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.1;
 
-    // Add lighting
-    scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    // Lighting
+    scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
     directionalLight.position.set(1, 1, 1);
     scene.add(directionalLight);
-
-    const secondLight = new THREE.DirectionalLight(0xffffff, 0.5);
-    secondLight.position.set(-1, 0.5, -1);
-    scene.add(secondLight);
 
     // Create boids
     createBoids();
 
-    // Setup event listeners
+    // Setup UI
     setupEventListeners();
 
-    // Handle window resize
+    // Window resize
     window.addEventListener('resize', onWindowResize);
 
-    // Listen for dark mode changes
-    setupDarkModeListener();
-
-    // Start animation loop
+    // Start animation
     animate();
 
-    // Update statistics
-    updateStats();
-
-    console.log("Cube-bounded flocking visualization initialized");
+    console.log("Swarm-based edge bundling visualization initialized");
 }
 
-// Function to toggle grid visibility
-function toggleGrid() {
-    config.showGrid = !config.showGrid;
-    if (gridHelper) {
-        gridHelper.visible = config.showGrid;
-    }
-    if (axisHelper) {
-        axisHelper.visible = config.showGrid;
-    }
-}
-
-// Create boids with random positions and velocities within the cube
 function createBoids() {
     // Remove existing boids
     boids.forEach(boid => boid.dispose());
@@ -366,34 +506,25 @@ function createBoids() {
 
     // Create new boids
     for (let i = 0; i < config.numBoids; i++) {
-        // Random position within boundary cube (smaller initial area)
         const position = new THREE.Vector3(
-            (Math.random() - 0.5) * config.boundarySize * 1.6, // Reduced from 1.8
-            (Math.random() - 0.5) * config.boundarySize * 1.6,
-            (Math.random() - 0.5) * config.boundarySize * 1.6
+            (Math.random() - 0.5) * config.boundarySize,
+            (Math.random() - 0.5) * config.boundarySize,
+            (Math.random() - 0.5) * config.boundarySize
         );
 
-        // Random velocity (reduced initial speed)
         const velocity = new THREE.Vector3(
-            (Math.random() - 0.5) * config.maxSpeed * 0.5, // Reduced from full maxSpeed
-            (Math.random() - 0.5) * config.maxSpeed * 0.5,
-            (Math.random() - 0.5) * config.maxSpeed * 0.5
+            (Math.random() - 0.5) * 2,
+            (Math.random() - 0.5) * 2,
+            (Math.random() - 0.5) * 2
         );
 
-        // Create boid
-        const boid = new Boid(position, velocity);
-        boid.updateMaterial(config.colorScheme, i, config.numBoids);
+        const boid = new SwarmBoid(position, velocity);
         boids.push(boid);
     }
 
-    // Update boundary box size
     updateBoundaryBox();
-
-    // Update statistics
-    updateStats();
 }
 
-// Update boundary box size
 function updateBoundaryBox() {
     if (boundaryBox) {
         scene.remove(boundaryBox);
@@ -401,384 +532,207 @@ function updateBoundaryBox() {
         boundaryBox.material.dispose();
     }
 
-    const boundaryGeometry = new THREE.BoxGeometry(
-        config.boundarySize * 2, 
-        config.boundarySize * 2, 
+    const geometry = new THREE.BoxGeometry(
+        config.boundarySize * 2,
+        config.boundarySize * 2,
         config.boundarySize * 2
     );
-    const boundaryMaterial = new THREE.MeshBasicMaterial({
-        color: 0x888888,
+    const material = new THREE.MeshBasicMaterial({
+        color: 0x444444,
         transparent: true,
-        opacity: 0.2,
+        opacity: 0.1,
         wireframe: true
     });
-    boundaryBox = new THREE.Mesh(boundaryGeometry, boundaryMaterial);
+    boundaryBox = new THREE.Mesh(geometry, material);
     scene.add(boundaryBox);
-
-    // Update grid size
-    if (gridHelper) {
-        scene.remove(gridHelper);
-        gridHelper = new THREE.GridHelper(config.boundarySize * 2, 20);
-        scene.add(gridHelper);
-        gridHelper.visible = config.showGrid;
-    }
 }
 
-// Update boid materials based on color scheme
-function updateBoidMaterials() {
-    boids.forEach((boid, index) => {
-        boid.updateMaterial(config.colorScheme, index, boids.length);
-    });
-}
-
-// Listen for dark mode changes
-function setupDarkModeListener() {
-    // Watch for clicks on the dark mode toggle button
-    const darkModeToggle = document.getElementById('darkModeToggle');
-    if (darkModeToggle) {
-        console.log("Dark mode toggle button found, adding listener");
-        darkModeToggle.addEventListener('click', updateSceneBackground);
-    } else {
-        console.log("Dark mode toggle button not found, using MutationObserver");
-        // If we can't find the button directly, watch for class changes on body
-        const observer = new MutationObserver(function (mutations) {
-            mutations.forEach(function (mutation) {
-                if (mutation.attributeName === 'class') {
-                    updateSceneBackground();
-                }
-            });
-        });
-
-        observer.observe(document.body, { attributes: true });
-    }
-}
-
-// Update scene background based on dark mode state
-function updateSceneBackground() {
-    if (!scene) return;
-
-    const isDarkMode = document.body.classList.contains('dark-mode');
-    scene.background = new THREE.Color(isDarkMode ? 0x121212 : 0xffffff);
-    console.log("Updated Three.js scene background to", isDarkMode ? "dark" : "light", "mode");
-}
-
-// Animation loop
 function animate() {
     requestAnimationFrame(animate);
 
-    // Calculate delta time
     const delta = clock.getDelta();
+    const currentTime = performance.now();
+    frameCount++;
 
     // Update controls
     controls.update();
 
-    // Update boids
+    // Update boids with swarm bundling
     if (!config.paused) {
-        boids.forEach(boid => boid.update(delta, boids));
-
-        // Update iterations counter for stats
-        config.iterations = (config.iterations || 0) + 1;
-
-        // Update stats periodically
-        if (config.iterations % 30 === 0) {
-            updateStats();
-        }
+        boids.forEach(boid => boid.update(delta, boids, currentTime));
     }
 
-    // Render the scene
+    // Update stats
+    if (frameCount % 60 === 0) {
+        updateStats();
+    }
+
     renderer.render(scene, camera);
 }
 
-// Handle window resize
+function updateStats() {
+    let bundledTrails = 0;
+    boids.forEach(boid => {
+        if (boid.trail && boid.trail.bundlingWeights.some(w => w > 0.1)) {
+            bundledTrails++;
+        }
+    });
+
+    const fps = Math.round(1000 / clock.getDelta());
+    lastFPS = fps;
+
+    const statsElement = document.getElementById('stats');
+    if (statsElement) {
+        statsElement.textContent = `Boids: ${boids.length} | Bundled Trails: ${bundledTrails} | FPS: ${fps}`;
+    }
+}
+
 function onWindowResize() {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
 }
 
-// Update statistics display
-function updateStats() {
-    const statsElement = document.getElementById('stats');
-    if (statsElement) {
-        statsElement.textContent = `Boids: ${boids.length} | Iterations: ${config.iterations || 0}`;
+function setBundlingMode(mode) {
+    config.bundlingMode = mode;
+
+    // Update UI
+    document.querySelectorAll('.bundling-mode button').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    document.getElementById(mode + 'Mode').classList.add('active');
+
+    // Update algorithm info
+    const info = document.getElementById('algorithmInfo');
+    switch (mode) {
+        case 'realtime':
+            info.textContent = 'Real-time bundling based on swarm proximity and velocity alignment';
+            break;
+        case 'static':
+            info.textContent = 'Static bundling applied when simulation is paused';
+            break;
+        case 'hybrid':
+            info.textContent = 'Combines velocity-based and position-based bundling forces';
+            break;
+        case 'magnetic':
+            info.textContent = 'Magnetic attraction with density-based falloff';
+            break;
     }
 }
 
-// Clear debug display
-function clearDebug() {
-    const debugElement = document.getElementById('debug');
-    if (debugElement) {
-        debugElement.textContent = '';
-    }
-}
-
-// Toggle pause state
-function togglePause() {
-    config.paused = !config.paused;
-    const pauseBtn = document.getElementById('pauseBtn');
-    if (pauseBtn) {
-        pauseBtn.textContent = config.paused ? 'Resume' : 'Pause';
-    }
-}
-
-// Toggle adaptive smoothing
-function toggleAdaptiveSmooth() {
-    config.adaptiveSmooth = !config.adaptiveSmooth;
-    const adaptiveSmoothBtn = document.getElementById('adaptiveSmoothBtn');
-    if (adaptiveSmoothBtn) {
-        adaptiveSmoothBtn.textContent = config.adaptiveSmooth ? 'Disable Smooth' : 'Adaptive Smooth';
-    }
-}
-
-// Reset the simulation
-function resetSimulation() {
-    createBoids();
-    config.iterations = 0;
-    updateStats();
-    clearDebug();
-}
-
-// Setup UI event listeners
 function setupEventListeners() {
-    // Resolution slider - repurpose for number of boids
-    const resolutionSlider = document.getElementById('resolution');
-    const resolutionValue = document.getElementById('resolutionValue');
+    // Minimize button
+    const minimizeBtn = document.getElementById('minimizeControls');
+    const controlsPanel = document.getElementById('controls');
 
-    if (resolutionSlider && resolutionValue) {
-        // Change label to "Boids" instead of "Resolution"
-        const label = resolutionSlider.previousElementSibling;
-        if (label && label.tagName === 'LABEL') {
-            label.innerHTML = `Boids <span class="value-display" id="resolutionValue">${config.numBoids}</span>`;
-        }
+    minimizeBtn.addEventListener('click', () => {
+        controlsPanel.classList.toggle('minimized');
+        const icon = minimizeBtn.querySelector('span');
+        icon.textContent = controlsPanel.classList.contains('minimized') ? '⮞' : '⮜';
+    });
 
-        resolutionSlider.min = 10;
-        resolutionSlider.max = 200;
-        resolutionSlider.step = 10;
-        resolutionSlider.value = config.numBoids;
-        resolutionValue.textContent = config.numBoids;
+    // Basic controls
+    document.getElementById('resetBtn').addEventListener('click', () => {
+        createBoids();
+        frameCount = 0;
+    });
 
-        resolutionSlider.addEventListener('input', function () {
-            config.numBoids = parseInt(this.value);
-            resolutionValue.textContent = config.numBoids;
+    document.getElementById('pauseBtn').addEventListener('click', () => {
+        config.paused = !config.paused;
+        document.getElementById('pauseBtn').textContent = config.paused ? 'Resume' : 'Pause';
+    });
+
+    document.getElementById('gridToggle').addEventListener('click', () => {
+        config.showGrid = !config.showGrid;
+        gridHelper.visible = config.showGrid;
+    });
+
+    document.getElementById('trailToggle').addEventListener('click', () => {
+        config.showTrails = !config.showTrails;
+        boids.forEach(boid => boid.trail.setVisible(config.showTrails));
+        document.getElementById('trailToggle').textContent = config.showTrails ? 'Hide Trails' : 'Show Trails';
+        document.getElementById('trailToggle').classList.toggle('active');
+    });
+
+    document.getElementById('clearTrails').addEventListener('click', () => {
+        boids.forEach(boid => boid.trail.clear());
+    });
+
+    // Bundling mode buttons
+    document.getElementById('realTimeMode').addEventListener('click', () => setBundlingMode('realtime'));
+    document.getElementById('staticMode').addEventListener('click', () => setBundlingMode('static'));
+    document.getElementById('hybridMode').addEventListener('click', () => setBundlingMode('hybrid'));
+    document.getElementById('magneticMode').addEventListener('click', () => setBundlingMode('magnetic'));
+
+    // Bundling toggle
+    document.getElementById('bundlingToggle').addEventListener('click', () => {
+        config.edgeBundling = !config.edgeBundling;
+        const btn = document.getElementById('bundlingToggle');
+        btn.textContent = config.edgeBundling ? 'Disable Bundling' : 'Enable Bundling';
+        btn.classList.toggle('active');
+    });
+
+    // Advanced toggles
+    document.getElementById('adaptiveToggle').addEventListener('click', () => {
+        config.adaptiveBundling = !config.adaptiveBundling;
+        const btn = document.getElementById('adaptiveToggle');
+        btn.textContent = config.adaptiveBundling ? 'Disable Adaptive' : 'Enable Adaptive';
+        btn.classList.toggle('active');
+    });
+
+    document.getElementById('hierarchicalToggle').addEventListener('click', () => {
+        config.hierarchicalBundling = !config.hierarchicalBundling;
+        const btn = document.getElementById('hierarchicalToggle');
+        btn.textContent = config.hierarchicalBundling ? 'Disable Hierarchical' : 'Enable Hierarchical';
+        btn.classList.toggle('active');
+    });
+
+    // Sliders with live updates
+    const sliders = [
+        ['numBoids', 'numBoidsValue', (val) => {
+            config.numBoids = parseInt(val);
             createBoids();
+        }],
+        ['maxSpeed', 'maxSpeedValue', (val) => { config.maxSpeed = parseFloat(val); }],
+        ['bundlingStrength', 'bundlingStrengthValue', (val) => { config.bundlingStrength = parseFloat(val); }],
+        ['bundlingRadius', 'bundlingRadiusValue', (val) => { config.bundlingRadius = parseFloat(val); }],
+        ['velocityWeight', 'velocityWeightValue', (val) => { config.velocityWeight = parseFloat(val); }],
+        ['densityThreshold', 'densityThresholdValue', (val) => { config.densityThreshold = parseInt(val); }],
+        ['smoothingFactor', 'smoothingFactorValue', (val) => { config.smoothingFactor = parseFloat(val); }],
+        ['bundlingIterations', 'bundlingIterationsValue', (val) => { config.bundlingIterations = parseInt(val); }],
+        ['trailDecay', 'trailDecayValue', (val) => { config.trailDecay = parseFloat(val); }],
+        ['magneticForce', 'magneticForceValue', (val) => { config.magneticForce = parseFloat(val); }],
+        ['trailLength', 'trailLengthValue', (val) => { config.trailLength = parseInt(val); }],
+        ['trailOpacity', 'trailOpacityValue', (val) => {
+            config.trailOpacity = parseFloat(val);
+            boids.forEach(boid => {
+                if (boid.trail) boid.trail.material.opacity = config.trailOpacity;
+            });
+        }]
+    ];
+
+    sliders.forEach(([sliderId, valueId, callback]) => {
+        const slider = document.getElementById(sliderId);
+        const valueDisplay = document.getElementById(valueId);
+
+        slider.addEventListener('input', function () {
+            const value = this.value;
+            if (valueDisplay) {
+                if (parseFloat(value) === parseInt(value)) {
+                    valueDisplay.textContent = parseInt(value);
+                } else {
+                    valueDisplay.textContent = parseFloat(value).toFixed(1);
+                }
+            }
+            callback(value);
         });
-    }
-
-    // Iso Level slider - repurpose for separation distance
-    const isoLevelSlider = document.getElementById('isoLevel');
-    const isoLevelValue = document.getElementById('isoLevelValue');
-
-    if (isoLevelSlider && isoLevelValue) {
-        // Change label to "Separation" instead of "Iso Level"
-        const label = isoLevelSlider.previousElementSibling;
-        if (label && label.tagName === 'LABEL') {
-            label.innerHTML = `Separation <span class="value-display" id="isoLevelValue">${config.separationDistance.toFixed(1)}</span>`;
-        }
-
-        isoLevelSlider.min = 0.5;
-        isoLevelSlider.max = 5;
-        isoLevelSlider.step = 0.1;
-        isoLevelSlider.value = config.separationDistance;
-        isoLevelValue.textContent = config.separationDistance.toFixed(1);
-
-        isoLevelSlider.addEventListener('input', function () {
-            config.separationDistance = parseFloat(this.value);
-            isoLevelValue.textContent = config.separationDistance.toFixed(1);
-        });
-    }
-
-    // Scale X slider - repurpose for alignment factor
-    const scaleXSlider = document.getElementById('scaleX');
-    const scaleXValue = document.getElementById('scaleXValue');
-
-    if (scaleXSlider && scaleXValue) {
-        // Change label to "Alignment" instead of "Scale X"
-        const label = scaleXSlider.previousElementSibling;
-        if (label && label.tagName === 'LABEL') {
-            label.innerHTML = `Alignment <span class="value-display" id="scaleXValue">${config.alignmentFactor.toFixed(2)}</span>`;
-        }
-
-        scaleXSlider.min = 0;
-        scaleXSlider.max = 0.2;
-        scaleXSlider.step = 0.01;
-        scaleXSlider.value = config.alignmentFactor;
-        scaleXValue.textContent = config.alignmentFactor.toFixed(2);
-
-        scaleXSlider.addEventListener('input', function () {
-            config.alignmentFactor = parseFloat(this.value);
-            scaleXValue.textContent = config.alignmentFactor.toFixed(2);
-        });
-    }
-
-    // Scale Y slider - repurpose for cohesion factor
-    const scaleYSlider = document.getElementById('scaleY');
-    const scaleYValue = document.getElementById('scaleYValue');
-
-    if (scaleYSlider && scaleYValue) {
-        // Change label to "Cohesion" instead of "Scale Y"
-        const label = scaleYSlider.previousElementSibling;
-        if (label && label.tagName === 'LABEL') {
-            label.innerHTML = `Cohesion <span class="value-display" id="scaleYValue">${config.cohesionFactor.toFixed(3)}</span>`;
-        }
-
-        scaleYSlider.min = 0;
-        scaleYSlider.max = 0.02;
-        scaleYSlider.step = 0.001;
-        scaleYSlider.value = config.cohesionFactor;
-        scaleYValue.textContent = config.cohesionFactor.toFixed(3);
-
-        scaleYSlider.addEventListener('input', function () {
-            config.cohesionFactor = parseFloat(this.value);
-            scaleYValue.textContent = config.cohesionFactor.toFixed(3);
-        });
-    }
-
-    // Scale Z slider - repurpose for separation factor
-    const scaleZSlider = document.getElementById('scaleZ');
-    const scaleZValue = document.getElementById('scaleZValue');
-
-    if (scaleZSlider && scaleZValue) {
-        // Change label to "Separation Factor" instead of "Scale Z"
-        const label = scaleZSlider.previousElementSibling;
-        if (label && label.tagName === 'LABEL') {
-            label.innerHTML = `Separation Factor <span class="value-display" id="scaleZValue">${config.separationFactor.toFixed(2)}</span>`;
-        }
-
-        scaleZSlider.min = 0;
-        scaleZSlider.max = 0.5;
-        scaleZSlider.step = 0.01;
-        scaleZSlider.value = config.separationFactor;
-        scaleZValue.textContent = config.separationFactor.toFixed(2);
-
-        scaleZSlider.addEventListener('input', function () {
-            config.separationFactor = parseFloat(this.value);
-            scaleZValue.textContent = config.separationFactor.toFixed(2);
-        });
-    }
+    });
 
     // Color scheme selector
-    const colorSchemeSelect = document.getElementById('colorScheme');
-
-    if (colorSchemeSelect) {
-        colorSchemeSelect.value = config.colorScheme;
-
-        colorSchemeSelect.addEventListener('change', function () {
-            config.colorScheme = this.value;
-            updateBoidMaterials();
-        });
-    }
-
-    // Rotation speed slider - repurpose for max speed
-    const rotationSpeedSlider = document.getElementById('rotationSpeed');
-    const rotationSpeedValue = document.getElementById('rotationSpeedValue');
-
-    if (rotationSpeedSlider && rotationSpeedValue) {
-        // Change label to "Max Speed" instead of "Rotation Speed"
-        const label = rotationSpeedSlider.previousElementSibling;
-        if (label && label.tagName === 'LABEL') {
-            label.innerHTML = `Max Speed <span class="value-display" id="rotationSpeedValue">${config.maxSpeed.toFixed(1)}</span>`;
-        }
-
-        rotationSpeedSlider.min = 0.1;
-        rotationSpeedSlider.max = 10;
-        rotationSpeedSlider.step = 0.1;
-        rotationSpeedSlider.value = config.maxSpeed;
-        rotationSpeedValue.textContent = config.maxSpeed.toFixed(1);
-
-        rotationSpeedSlider.addEventListener('input', function () {
-            config.maxSpeed = parseFloat(this.value);
-            rotationSpeedValue.textContent = config.maxSpeed.toFixed(1);
-        });
-    }
-
-    // Add boundary size slider if there's an available control
-    // You can add this to your HTML interface
-    const boundarySizeSlider = document.getElementById('boundarySize');
-    const boundarySizeValue = document.getElementById('boundarySizeValue');
-
-    if (boundarySizeSlider && boundarySizeValue) {
-        boundarySizeSlider.min = 5;
-        boundarySizeSlider.max = 30;
-        boundarySizeSlider.step = 1;
-        boundarySizeSlider.value = config.boundarySize;
-        boundarySizeValue.textContent = config.boundarySize;
-
-        boundarySizeSlider.addEventListener('input', function () {
-            config.boundarySize = parseInt(this.value);
-            boundarySizeValue.textContent = config.boundarySize;
-            updateBoundaryBox();
-        });
-    }
-
-    // Grid toggle button
-    const gridToggleButton = document.getElementById('gridToggle');
-    if (gridToggleButton) {
-        gridToggleButton.addEventListener('click', toggleGrid);
-    }
-
-    // Reset button
-    const resetBtn = document.getElementById('resetBtn');
-    if (resetBtn) {
-        resetBtn.addEventListener('click', resetSimulation);
-    }
-
-    // Pause button
-    const pauseBtn = document.getElementById('pauseBtn');
-    if (pauseBtn) {
-        pauseBtn.addEventListener('click', togglePause);
-        pauseBtn.textContent = config.paused ? 'Resume' : 'Pause';
-    }
-
-    // Debug button
-    const debugBtn = document.getElementById('debugBtn');
-    if (debugBtn) {
-        debugBtn.addEventListener('click', clearDebug);
-    }
-
-    // Adaptive smooth button
-    const adaptiveSmoothBtn = document.getElementById('adaptiveSmoothBtn');
-    if (adaptiveSmoothBtn) {
-        adaptiveSmoothBtn.addEventListener('click', toggleAdaptiveSmooth);
-        adaptiveSmoothBtn.textContent = config.adaptiveSmooth ? 'Disable Smooth' : 'Adaptive Smooth';
-    }
-
-    // Speed slider
-    const speedSlider = document.getElementById('speedSlider');
-    const speedValue = document.getElementById('speedValue');
-
-    if (speedSlider && speedValue) {
-        speedSlider.value = config.speed;
-        speedValue.textContent = config.speed;
-
-        speedSlider.addEventListener('input', function () {
-            config.speed = parseInt(this.value);
-            speedValue.textContent = config.speed;
-        });
-    }
-
-    // Collision checks slider
-    const collisionSlider = document.getElementById('collisionSlider');
-    const collisionValue = document.getElementById('collisionValue');
-
-    if (collisionSlider && collisionValue) {
-        collisionSlider.value = config.collisionChecks;
-        collisionValue.textContent = config.collisionChecks;
-
-        collisionSlider.addEventListener('input', function () {
-            config.collisionChecks = parseInt(this.value);
-            collisionValue.textContent = config.collisionChecks;
-        });
-    }
+    document.getElementById('colorScheme').addEventListener('change', function () {
+        config.colorScheme = this.value;
+    });
 }
 
-// Initialize the visualization once the DOM is loaded
+// Initialize when DOM loads
 document.addEventListener('DOMContentLoaded', init);
-
-// Export functions for potential external use
-window.flockingSimulation = {
-    reset: resetSimulation,
-    togglePause: togglePause,
-    toggleGrid: toggleGrid,
-    toggleAdaptiveSmooth: toggleAdaptiveSmooth,
-    clearDebug: clearDebug
-};
