@@ -680,7 +680,7 @@ function setupEventListeners() {
         }
 
         rotationSpeedSlider.min = 0.1;
-        rotationSpeedSlider.max = 1.0;
+        rotationSpeedSlider.max = 10;
         rotationSpeedSlider.step = 0.1;
         rotationSpeedSlider.value = config.maxSpeed;
         rotationSpeedValue.textContent = config.maxSpeed.toFixed(1);
