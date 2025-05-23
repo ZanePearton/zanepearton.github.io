@@ -4,20 +4,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gyroid-threejs</title>
+    <title>Cube Flocking Visualization in Three.js</title>
     <script type="importmap">
         {
           "imports": {
             "three": "https://cdn.jsdelivr.net/npm/three@0.155.0/build/three.module.js",
-            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.155.0/examples/jsm/",
-            "three-subdivide": "https://cdn.jsdelivr.net/npm/three-subdivide@1.1.3/build/index.module.js"
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.155.0/examples/jsm/"
           }
         }
     </script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="../css/styles.css">
     <script type="module" src="../js/ui/main.js"></script>
-    <script type="module" src="../js/three/edgebundling.js"></script>
+    <script type="module" src="../js/three/trailbundling.js"></script>
     <script type="module" src="../js/ui/sidebar.js"></script>
 </head>
 
@@ -53,43 +52,76 @@
                     <i class="fas fa-chevron-right"></i>
                 </button>
                 <div class="controls-inner">
-                    <div class="control-title">Visualization Controls</div>
+                    <div class="control-title">Flocking Visualization</div>
                     <div class="control-content">
-                        <!-- Edge Bundling Control Group -->
+                        <!-- Flocking Control Group -->
                         <div class="control-group">
-                            <h4>Edge Bundling Controls</h4>
-                            <button id="regenerateBtn">Regenerate Network</button>
-                            <button id="applyBundlingBtn">Apply Bundling</button>
-                            <button id="nodesToggle">Hide Nodes</button>
-                            <button id="labelsToggle">Hide Labels</button>
+                            <h4>Simulation Controls</h4>
+                            <button id="resetBtn">Reset Simulation</button>
+                            <button id="pauseBtn">Pause</button>
+                            <button id="gridToggle">Toggle Grid</button>
+                            <button id="adaptiveSmoothBtn">Adaptive Smooth</button>
                             
-                            <label for="bundlingStrength">Bundling Strength <span class="value-display"
-                                    id="bundlingStrengthValue">0.85</span></label>
-                            <input type="range" id="bundlingStrength" min="0" max="1" value="0.85" step="0.05">
+                            <!-- Number of Boids (mapped to resolution slider) -->
+                            <label for="resolution">Boids <span class="value-display" id="resolutionValue">100</span></label>
+                            <input type="range" id="resolution" min="10" max="200" value="100" step="10">
                             
-                            <label for="bundlingCycles">Bundling Cycles <span class="value-display"
-                                    id="bundlingCyclesValue">6</span></label>
-                            <input type="range" id="bundlingCycles" min="1" max="10" value="6" step="1">
+                            <!-- Separation Distance (mapped to isoLevel slider) -->
+                            <label for="isoLevel">Separation <span class="value-display" id="isoLevelValue">2.0</span></label>
+                            <input type="range" id="isoLevel" min="0.5" max="5" value="2.0" step="0.1">
                             
-                            <label for="edgeOpacity">Edge Opacity <span class="value-display"
-                                    id="edgeOpacityValue">0.6</span></label>
-                            <input type="range" id="edgeOpacity" min="0.1" max="1" value="0.6" step="0.05">
+                            <!-- Alignment Factor (mapped to scaleX slider) -->
+                            <label for="scaleX">Alignment <span class="value-display" id="scaleXValue">0.05</span></label>
+                            <input type="range" id="scaleX" min="0" max="0.2" value="0.05" step="0.01">
                             
-                            <label for="edgeThickness">Edge Thickness <span class="value-display"
-                                    id="edgeThicknessValue">1.0</span></label>
-                            <input type="range" id="edgeThickness" min="0.5" max="3" value="1.0" step="0.1">
+                            <!-- Cohesion Factor (mapped to scaleY slider) -->
+                            <label for="scaleY">Cohesion <span class="value-display" id="scaleYValue">0.005</span></label>
+                            <input type="range" id="scaleY" min="0" max="0.02" value="0.005" step="0.001">
                             
-                            <label for="nodeSize">Node Size <span class="value-display"
-                                    id="nodeSizeValue">0.15</span></label>
-                            <input type="range" id="nodeSize" min="0.05" max="0.5" value="0.15" step="0.01">
+                            <!-- Separation Factor (mapped to scaleZ slider) -->
+                            <label for="scaleZ">Separation Factor <span class="value-display" id="scaleZValue">0.1</span></label>
+                            <input type="range" id="scaleZ" min="0" max="0.5" value="0.1" step="0.01">
                             
-                            <label for="layoutForce">Layout Force <span class="value-display"
-                                    id="layoutForceValue">0.05</span></label>
-                            <input type="range" id="layoutForce" min="0.01" max="0.2" value="0.05" step="0.01">
+                            <!-- Max Speed (mapped to rotationSpeed slider) -->
+                            <label for="rotationSpeed">Max Speed <span class="value-display" id="rotationSpeedValue">0.5</span></label>
+                            <input type="range" id="rotationSpeed" min="0.1" max="1.0" value="0.5" step="0.1">
+                            
+                            <div class="control-row">
+                                <label for="colorScheme">Color Scheme:</label>
+                                <select id="colorScheme">
+                                    <option value="gradient">Gradient</option>
+                                    <option value="rainbow">Rainbow</option>
+                                    <option value="wireframe">Wireframe</option>
+                                    <option value="normals">Normals</option>
+                                </select>
+                            </div>
                         </div>
+                        
+                        <!-- Boundary Control Group -->
                         <div class="control-group">
-                            <div id="stats">Vertices: 0 | Faces: 0 | Iter: 0</div>
+                            <h4>Boundary Controls</h4>
+                            
+                            <!-- Boundary Size Control -->
+                            <label for="boundarySize">Boundary Size <span class="value-display" id="boundarySizeValue">15</span></label>
+                            <input type="range" id="boundarySize" min="5" max="30" value="15" step="1">
+                        </div>
+                        
+                        <!-- Advanced Settings -->
+                        <div class="control-group">
+                            <h4>Advanced Settings</h4>
+                            
+                            <label for="speedSlider">Update Speed <span class="value-display" id="speedValue">100</span></label>
+                            <input type="range" id="speedSlider" min="50" max="200" value="100" step="10">
+                            
+                            <label for="collisionSlider">Collision Checks <span class="value-display" id="collisionValue">100</span></label>
+                            <input type="range" id="collisionSlider" min="50" max="200" value="100" step="10">
+                        </div>
+                        
+                        <!-- Statistics and Debug -->
+                        <div class="control-group">
+                            <div id="stats">Boids: 100 | Iterations: 0</div>
                             <div id="debug"></div>
+                            <button id="debugBtn">Clear Debug</button>
                         </div>
                     </div>
                 </div>
@@ -164,3 +196,4 @@
         </div>
     </footer>
 </body>
+</html>
