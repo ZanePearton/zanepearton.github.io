@@ -913,6 +913,48 @@ function setupEventListeners() {
         });
     }
 
+    // Density radius slider
+    const densityRadiusSlider = document.getElementById('densityRadius');
+    const densityRadiusValue = document.getElementById('densityRadiusValue');
+
+    if (densityRadiusSlider && densityRadiusValue) {
+        densityRadiusSlider.value = config.densityRadius;
+        densityRadiusValue.textContent = config.densityRadius;
+
+        densityRadiusSlider.addEventListener('input', function () {
+            config.densityRadius = parseFloat(this.value);
+            densityRadiusValue.textContent = config.densityRadius;
+        });
+    }
+
+    // Flow field strength slider  
+    const flowFieldSlider = document.getElementById('flowFieldStrength');
+    const flowFieldValue = document.getElementById('flowFieldStrengthValue');
+
+    if (flowFieldSlider && flowFieldValue) {
+        flowFieldSlider.value = config.flowFieldStrength;
+        flowFieldValue.textContent = config.flowFieldStrength.toFixed(1);
+
+        flowFieldSlider.addEventListener('input', function () {
+            config.flowFieldStrength = parseFloat(this.value);
+            flowFieldValue.textContent = config.flowFieldStrength.toFixed(1);
+        });
+    }
+
+    // Velocity smoothing slider
+    const velocitySmoothingSlider = document.getElementById('velocitySmoothing');
+    const velocitySmoothingValue = document.getElementById('velocitySmoothingValue');
+
+    if (velocitySmoothingSlider && velocitySmoothingValue) {
+        velocitySmoothingSlider.value = config.velocitySmoothing;
+        velocitySmoothingValue.textContent = config.velocitySmoothing.toFixed(2);
+
+        velocitySmoothingSlider.addEventListener('input', function () {
+            config.velocitySmoothing = parseFloat(this.value);
+            velocitySmoothingValue.textContent = config.velocitySmoothing.toFixed(2);
+        });
+    }
+
     // Color scheme selector
     const colorSchemeSelect = document.getElementById('colorScheme');
 
