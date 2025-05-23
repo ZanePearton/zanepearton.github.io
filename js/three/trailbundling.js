@@ -55,10 +55,26 @@ class Boid {
         // Calculate steering forces
         const { separation, alignment, cohesion } = this.calculateForces(boids);
 
+        // Limit force magnitudes to prevent explosive behavior
+        const maxForce = 0.1;
+        
+        if (separation.length() > maxForce) {
+            separation.normalize().multiplyScalar(maxForce);
+        }
+        if (alignment.length() > maxForce) {
+            alignment.normalize().multiplyScalar(maxForce);
+        }
+        if (cohesion.length() > maxForce) {
+            cohesion.normalize().multiplyScalar(maxForce);
+        }
+
         // Apply forces to velocity
         this.velocity.add(separation.multiplyScalar(config.separationFactor));
         this.velocity.add(alignment.multiplyScalar(config.alignmentFactor));
         this.velocity.add(cohesion.multiplyScalar(config.cohesionFactor));
+
+        // Apply boundary avoidance BEFORE limiting speed
+        this.enforceBoundary();
 
         // Limit speed
         const speed = this.velocity.length();
@@ -76,11 +92,8 @@ class Boid {
             }
         }
 
-        // Apply boundary avoidance
-        this.enforceBoundary();
-
-        // Update position
-        this.mesh.position.add(this.velocity.clone().multiplyScalar(delta * 60));
+        // Update position with reduced multiplier
+        this.mesh.position.add(this.velocity.clone().multiplyScalar(delta));
 
         // Set orientation to match velocity
         if (this.velocity.lengthSq() > 0.001) {
@@ -162,25 +175,40 @@ class Boid {
     enforceBoundary() {
         const position = this.mesh.position;
         const boundaryForce = new THREE.Vector3();
-        const boundaryStrength = 0.5;
+        const boundaryStrength = 2.0; // Increased from 0.5
+        const margin = 2.0; // Add margin for earlier force application
 
         // Check each axis and apply force if near boundary
-        if (position.x > config.boundarySize) {
-            boundaryForce.x = -(position.x - config.boundarySize) * boundaryStrength;
-        } else if (position.x < -config.boundarySize) {
-            boundaryForce.x = -(-config.boundarySize - position.x) * boundaryStrength;
+        if (position.x > config.boundarySize - margin) {
+            boundaryForce.x = -(position.x - (config.boundarySize - margin)) * boundaryStrength;
+        } else if (position.x < -config.boundarySize + margin) {
+            boundaryForce.x = -(-config.boundarySize + margin - position.x) * boundaryStrength;
         }
 
-        if (position.y > config.boundarySize) {
-            boundaryForce.y = -(position.y - config.boundarySize) * boundaryStrength;
-        } else if (position.y < -config.boundarySize) {
-            boundaryForce.y = -(-config.boundarySize - position.y) * boundaryStrength;
+        if (position.y > config.boundarySize - margin) {
+            boundaryForce.y = -(position.y - (config.boundarySize - margin)) * boundaryStrength;
+        } else if (position.y < -config.boundarySize + margin) {
+            boundaryForce.y = -(-config.boundarySize + margin - position.y) * boundaryStrength;
         }
 
-        if (position.z > config.boundarySize) {
-            boundaryForce.z = -(position.z - config.boundarySize) * boundaryStrength;
-        } else if (position.z < -config.boundarySize) {
-            boundaryForce.z = -(-config.boundarySize - position.z) * boundaryStrength;
+        if (position.z > config.boundarySize - margin) {
+            boundaryForce.z = -(position.z - (config.boundarySize - margin)) * boundaryStrength;
+        } else if (position.z < -config.boundarySize + margin) {
+            boundaryForce.z = -(-config.boundarySize + margin - position.z) * boundaryStrength;
+        }
+
+        // Hard boundary enforcement as safety net
+        if (Math.abs(position.x) > config.boundarySize) {
+            position.x = Math.sign(position.x) * config.boundarySize;
+            this.velocity.x *= -0.5; // Bounce back
+        }
+        if (Math.abs(position.y) > config.boundarySize) {
+            position.y = Math.sign(position.y) * config.boundarySize;
+            this.velocity.y *= -0.5;
+        }
+        if (Math.abs(position.z) > config.boundarySize) {
+            position.z = Math.sign(position.z) * config.boundarySize;
+            this.velocity.z *= -0.5;
         }
 
         this.velocity.add(boundaryForce);
@@ -338,18 +366,18 @@ function createBoids() {
 
     // Create new boids
     for (let i = 0; i < config.numBoids; i++) {
-        // Random position within boundary cube
+        // Random position within boundary cube (smaller initial area)
         const position = new THREE.Vector3(
-            (Math.random() - 0.5) * config.boundarySize * 1.8, // Slightly smaller than full boundary
-            (Math.random() - 0.5) * config.boundarySize * 1.8,
-            (Math.random() - 0.5) * config.boundarySize * 1.8
+            (Math.random() - 0.5) * config.boundarySize * 1.6, // Reduced from 1.8
+            (Math.random() - 0.5) * config.boundarySize * 1.6,
+            (Math.random() - 0.5) * config.boundarySize * 1.6
         );
 
-        // Random velocity
+        // Random velocity (reduced initial speed)
         const velocity = new THREE.Vector3(
-            (Math.random() - 0.5) * config.maxSpeed,
-            (Math.random() - 0.5) * config.maxSpeed,
-            (Math.random() - 0.5) * config.maxSpeed
+            (Math.random() - 0.5) * config.maxSpeed * 0.5, // Reduced from full maxSpeed
+            (Math.random() - 0.5) * config.maxSpeed * 0.5,
+            (Math.random() - 0.5) * config.maxSpeed * 0.5
         );
 
         // Create boid
