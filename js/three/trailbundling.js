@@ -27,6 +27,12 @@ let config = {
     trailCohesion: 0.1,        // How much trails are attracted to each other
     trailInfluenceRadius: 15,  // How far trails can influence each other
     
+    // Edge bundling specific parameters
+    edgeBundlingStrength: 0.3,    // Main bundling force strength
+    parallelAttractionStrength: 0.4, // Attraction to parallel trails
+    perpendicularRepulsionStrength: 0.2, // Repulsion from perpendicular trails
+    bundlingThreshold: 0.5,       // Minimum alignment for bundling
+    
     // Visualization
     colorScheme: 'gradient',
     showTrails: true,
@@ -186,7 +192,8 @@ class Boid {
             position: this.mesh.position.clone(),
             velocity: this.velocity.clone(),
             originalPosition: this.mesh.position.clone(), // Reference for restoration force
-            boidId: this.id
+            boidId: this.id,
+            age: 0 // Track age of trail point for weighting
         });
         
         // Limit trail length
@@ -194,8 +201,11 @@ class Boid {
             this.trailPoints.shift();
         }
         
-        // Apply flocking behavior to the trail points (except first point)
-        this.applyTrailFlocking();
+        // Update ages
+        this.trailPoints.forEach(point => point.age++);
+        
+        // Apply enhanced edge bundling to the trail points
+        this.applyEdgeBundling();
         
         // Create new trail line
         if (this.trailPoints.length > 1) {
@@ -231,101 +241,164 @@ class Boid {
         }
     }
     
-    // Apply flocking behavior to trail points
-    applyTrailFlocking() {
+    // Apply enhanced edge bundling behavior to trail points
+    applyEdgeBundling() {
         // Skip if too few points
         if (this.trailPoints.length < 3) return;
         
-        // We don't move the first point (attached to boid) or last point (newest)
-        for (let i = 1; i < this.trailPoints.length - 1; i++) {
+        // We don't move the first point (attached to boid) or the last few points (newest)
+        for (let i = 1; i < this.trailPoints.length - 2; i++) {
             const point = this.trailPoints[i];
             
             // Initialize forces
-            const separation = new THREE.Vector3();
-            const alignment = new THREE.Vector3();
-            const cohesion = new THREE.Vector3();
-            const restoration = new THREE.Vector3();
+            const bundlingForce = new THREE.Vector3();
+            const separationForce = new THREE.Vector3();
+            const alignmentForce = new THREE.Vector3();
+            const continuityForce = new THREE.Vector3();
+            const restorationForce = new THREE.Vector3();
             
+            let bundlingCount = 0;
             let separationCount = 0;
             let alignmentCount = 0;
-            let cohesionCount = 0;
+            
+            // Get current segment direction
+            const currentDir = new THREE.Vector3();
+            if (i > 0 && i < this.trailPoints.length - 1) {
+                currentDir.subVectors(
+                    this.trailPoints[i + 1].position,
+                    this.trailPoints[i - 1].position
+                ).normalize();
+            }
             
             // Influence radius squared
             const influenceRadiusSq = config.trailInfluenceRadius * config.trailInfluenceRadius;
             
-            // Check against all other boids' trail points
-            boids.forEach(boid => {
+            // Check against all other boids' trail points for edge bundling
+            boids.forEach(otherBoid => {
                 // Skip points from this boid's trail (to prevent self-interaction)
-                if (boid === this) return;
+                if (otherBoid === this) return;
                 
-                boid.trailPoints.forEach(otherPoint => {
+                otherBoid.trailPoints.forEach((otherPoint, otherIndex) => {
                     const distSq = point.position.distanceToSquared(otherPoint.position);
                     
                     // Only consider points within influence radius
-                    if (distSq < influenceRadiusSq) {
-                        // Separation: avoid crowding other trails
-                        separation.add(
-                            new THREE.Vector3()
+                    if (distSq < influenceRadiusSq && distSq > 0.01) {
+                        const distance = Math.sqrt(distSq);
+                        
+                        // Get other segment direction
+                        const otherDir = new THREE.Vector3();
+                        if (otherIndex > 0 && otherIndex < otherBoid.trailPoints.length - 1) {
+                            otherDir.subVectors(
+                                otherBoid.trailPoints[otherIndex + 1].position,
+                                otherBoid.trailPoints[otherIndex - 1].position
+                            ).normalize();
+                        }
+                        
+                        // Calculate alignment between segments
+                        const alignment = Math.abs(currentDir.dot(otherDir));
+                        
+                        // Edge bundling: attract to parallel trails
+                        if (alignment > config.bundlingThreshold) {
+                            // Calculate perpendicular distance to the other trail
+                            const toOther = new THREE.Vector3().subVectors(otherPoint.position, point.position);
+                            const parallel = otherDir.clone().multiplyScalar(toOther.dot(otherDir));
+                            const perpendicular = toOther.clone().sub(parallel);
+                            
+                            // Attract towards the other trail (perpendicular component)
+                            const bundlingStrength = config.edgeBundlingStrength * alignment;
+                            const attractionForce = perpendicular.clone()
+                                .normalize()
+                                .multiplyScalar(bundlingStrength / (distance + 0.1));
+                            
+                            bundlingForce.add(attractionForce);
+                            bundlingCount++;
+                            
+                            // Additional parallel attraction
+                            const parallelAttraction = parallel.clone()
+                                .normalize()
+                                .multiplyScalar(config.parallelAttractionStrength * alignment / (distance + 0.1));
+                            bundlingForce.add(parallelAttraction);
+                        }
+                        // Repel from perpendicular trails
+                        else if (alignment < (1 - config.bundlingThreshold)) {
+                            const repulsionForce = new THREE.Vector3()
                                 .subVectors(point.position, otherPoint.position)
                                 .normalize()
-                                .divideScalar(Math.sqrt(distSq) || 1)
-                        );
-                        separationCount++;
+                                .multiplyScalar(config.perpendicularRepulsionStrength / (distance + 0.1));
+                            
+                            separationForce.add(repulsionForce);
+                            separationCount++;
+                        }
                         
-                        // Alignment: align with nearby trail directions
-                        alignment.add(otherPoint.velocity);
+                        // Standard separation for very close points
+                        if (distance < config.trailInfluenceRadius * 0.3) {
+                            const repulsion = new THREE.Vector3()
+                                .subVectors(point.position, otherPoint.position)
+                                .normalize()
+                                .multiplyScalar(config.trailSeparation / (distance + 0.1));
+                            separationForce.add(repulsion);
+                            separationCount++;
+                        }
+                        
+                        // Alignment with nearby trails
+                        alignmentForce.add(otherPoint.velocity);
                         alignmentCount++;
-                        
-                        // Cohesion: move toward average position of nearby points
-                        cohesion.add(otherPoint.position);
-                        cohesionCount++;
                     }
                 });
             });
             
-            // Calculate average forces
+            // Average the forces
+            if (bundlingCount > 0) {
+                bundlingForce.divideScalar(bundlingCount);
+            }
+            
             if (separationCount > 0) {
-                separation.divideScalar(separationCount).multiplyScalar(config.trailSeparation);
+                separationForce.divideScalar(separationCount);
             }
             
             if (alignmentCount > 0) {
-                alignment.divideScalar(alignmentCount);
-                alignment.normalize().multiplyScalar(config.trailAlignment);
+                alignmentForce.divideScalar(alignmentCount)
+                    .normalize()
+                    .multiplyScalar(config.trailAlignment);
             }
             
-            if (cohesionCount > 0) {
-                cohesion.divideScalar(cohesionCount);
-                cohesion.sub(point.position).normalize().multiplyScalar(config.trailCohesion);
-            }
-            
-            // Restoration force: pull back toward original position
-            restoration
-                .subVectors(point.originalPosition, point.position)
-                .multiplyScalar(0.03); // Small restoration force
-            
-            // Continuity force: keep trail smooth by averaging neighbors
-            const continuity = new THREE.Vector3();
+            // Continuity force: keep trail smooth by averaging with neighbors
             if (i > 0 && i < this.trailPoints.length - 1) {
-                const prev = this.trailPoints[i-1].position;
-                const next = this.trailPoints[i+1].position;
-                continuity.add(prev).add(next).divideScalar(2).sub(point.position).multiplyScalar(0.1);
+                const prev = this.trailPoints[i - 1].position;
+                const next = this.trailPoints[i + 1].position;
+                const smoothPosition = new THREE.Vector3().add(prev).add(next).divideScalar(2);
+                continuityForce.subVectors(smoothPosition, point.position).multiplyScalar(0.15);
             }
             
-            // Apply all forces to velocity
-            point.velocity.add(separation);
-            point.velocity.add(alignment);
-            point.velocity.add(cohesion);
-            point.velocity.add(restoration);
-            point.velocity.add(continuity);
+            // Restoration force: pull back toward original position (weaker over time)
+            const ageWeight = Math.max(0.1, 1.0 - (point.age / config.maxTrailLength));
+            restorationForce
+                .subVectors(point.originalPosition, point.position)
+                .multiplyScalar(0.02 * ageWeight);
+            
+            // Apply all forces to velocity with appropriate weights
+            point.velocity.add(bundlingForce.multiplyScalar(1.5)); // Stronger bundling
+            point.velocity.add(separationForce.multiplyScalar(0.8));
+            point.velocity.add(alignmentForce.multiplyScalar(0.6));
+            point.velocity.add(continuityForce.multiplyScalar(1.0));
+            point.velocity.add(restorationForce.multiplyScalar(0.5));
+            
+            // Add some smoothing between consecutive updates
+            if (i > 1) {
+                const prevVel = this.trailPoints[i - 1].velocity;
+                point.velocity.lerp(prevVel, 0.1);
+            }
             
             // Limit velocity
             const speed = point.velocity.length();
-            if (speed > config.maxSpeed * 0.5) { // Trail points move slower than boids
-                point.velocity.multiplyScalar((config.maxSpeed * 0.5) / speed);
+            const maxTrailSpeed = config.maxSpeed * 0.4; // Trail points move slower than boids
+            if (speed > maxTrailSpeed) {
+                point.velocity.multiplyScalar(maxTrailSpeed / speed);
             }
             
-            // Update position
-            point.position.add(point.velocity.clone().multiplyScalar(0.1)); // Smaller movement for stability
+            // Update position with damping for stability
+            const dampingFactor = 0.08;
+            point.position.add(point.velocity.clone().multiplyScalar(dampingFactor));
         }
     }
 
@@ -675,15 +748,14 @@ function setupEventListeners() {
     const bundleStrengthValue = document.getElementById('bundleStrengthValue');
 
     if (bundleStrengthSlider && bundleStrengthValue) {
-        bundleStrengthSlider.value = config.trailCohesion;
-        bundleStrengthValue.textContent = config.trailCohesion.toFixed(1);
+        bundleStrengthSlider.value = config.edgeBundlingStrength;
+        bundleStrengthValue.textContent = config.edgeBundlingStrength.toFixed(1);
 
         bundleStrengthSlider.addEventListener('input', function () {
-            // Update all trail flocking parameters proportionally
             const value = parseFloat(this.value);
-            config.trailCohesion = value;
-            config.trailAlignment = value * 1.5;
-            config.trailSeparation = value * 2.5;
+            config.edgeBundlingStrength = value;
+            config.parallelAttractionStrength = value * 1.3;
+            config.perpendicularRepulsionStrength = value * 0.7;
             bundleStrengthValue.textContent = value.toFixed(1);
         });
     }
