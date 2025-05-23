@@ -15,7 +15,7 @@ let config = {
     alignmentFactor: 0.05,  // How much to align with neighbors' direction
     cohesionFactor: 0.005,  // How much to move toward center of neighbors
     separationFactor: 0.1,  // How much to avoid neighbors
-    maxSpeed: 0.5,          // Maximum speed of boids
+    maxSpeed: 5,          // Maximum speed of boids
     perceptionRadius: 5,    // How far boids can see neighbors
     boundarySize: 15,       // Size of the boundary cube (half-width)
     colorScheme: 'gradient',
