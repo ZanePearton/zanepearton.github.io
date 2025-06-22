@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>neuroSnake</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@0.12.0"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="../css/styles.css">
+    <script type="module" src="../js/ui/main.js"></script>
+    <script type="module" src="../js/game/snake.js"></script>
+
+    <script type="module" src="../js/ui/sidebar.js"></script>
+</head>
+
+<body>
+    <!-- Header -->
+    <header>
+        <div class="container header-container">
+            <a href="../index.html" class="logo"
+                style="background: linear-gradient(to right, var(--apple-orange), var(--apple-purple)); -webkit-background-clip: text; background-clip: text; color: transparent;">Portfolio</a>
+            <button class="mobile-menu-btn" id="mobileMenuBtn">
+                <i class="fas fa-bars"></i>
+            </button>
+            <nav>
+                <ul id="navMenu">
+                    <li><a href="../index.html#hero">Home</a></li>
+                    <li><a href="../index.html#about">About</a></li>
+                    <li><a href="../index.html#projects">Projects</a></li>
+                    <li><a href="../index.html#certifications">Certifications</a></li>
+                    <li><a href="../index.html#contact">Contact</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero" id="hero">
+        <div class="hero-content">
+            <!-- Game Canvas Container -->
+            <div id="canvas-container">
+                <canvas id="canvas" width="1700" height="1000"></canvas>
+            </div>
+            
+            <!-- Controls Panel -->
+            <div id="controls">
+                <button id="minimizeControls" title="Minimize/Maximize Panel">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+                <div class="controls-inner">
+                    <div class="control-title">neuroSnake Controls</div>
+                    <div class="control-content">
+                        <!-- Game Statistics -->
+                        <div class="control-group">
+                            <h4>Statistics</h4>
+                            <div id="stats">
+                                Score: <span id="current-score">0</span> | 
+                                High: <span id="high-score">0</span> | 
+                                Gen: <span id="generation">1</span>
+                            </div>
+                            <div id="snake-length">Snake Length: 1</div>
+                        </div>
+
+                        <!-- Game Controls -->
+                        <div class="control-group">
+                            <h4>Game Controls</h4>
+                            <button id="start-btn">Start Training</button>
+                            <button id="pause-btn">Pause</button>
+                            <button id="reset-btn">Reset</button>
+                        </div>
+
+                        <!-- Training Parameters -->
+                        <div class="control-group">
+                            <label for="speedSlider">Game Speed <span class="value-display" id="speedValue">1</span>x</label>
+                            <input type="range" id="speedSlider" min="1" max="10" value="1" step="1">
+                            
+                            <label for="populationSlider">Population Size <span class="value-display" id="populationValue">50</span></label>
+                            <input type="range" id="populationSlider" min="10" max="200" value="50" step="10">
+                        </div>
+
+                        <!-- Neural Network Visualization -->
+                        <div class="control-group">
+                            <h4>Neural Network</h4>
+                            <div id="neural-viz">
+                                <div class="neural-layers">
+                                    <div class="neural-layer">
+                                        <div class="neural-node" id="input-1"></div>
+                                        <div class="neural-node" id="input-2"></div>
+                                        <div class="neural-node" id="input-3"></div>
+                                        <div class="neural-node" id="input-4"></div>
+                                        <div class="layer-label">Input</div>
+                                    </div>
+                                    <div class="neural-layer">
+                                        <div class="neural-node" id="hidden-1"></div>
+                                        <div class="neural-node" id="hidden-2"></div>
+                                        <div class="neural-node" id="hidden-3"></div>
+                                        <div class="layer-label">Hidden</div>
+                                    </div>
+                                    <div class="neural-layer">
+                                        <div class="neural-node" id="output-1"></div>
+                                        <div class="neural-node" id="output-2"></div>
+                                        <div class="neural-node" id="output-3"></div>
+                                        <div class="neural-node" id="output-4"></div>
+                                        <div class="layer-label">Output</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="training-progress">Training Progress: 0%</div>
+                        </div>
+
+                        <!-- AI Information -->
+                        <div class="control-group">
+                            <h4>How it Works</h4>
+                            <div id="ai-info">
+                                <p><strong>Neural Network:</strong> 4 inputs → 3 hidden → 4 outputs</p>
+                                <p><strong>Inputs:</strong> Distance to walls, food direction</p>
+                                <p><strong>Outputs:</strong> Up, Down, Left, Right</p>
+                                <p><strong>Learning:</strong> Genetic algorithm evolution</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section class="section contact" id="contact">
+        <div class="container">
+            <div class="section-title">
+                <h2>Get In Touch</h2>
+                <p>Interested in working together? Let's start a conversation.</p>
+            </div>
+            <div class="contact-container">
+                <div class="contact-info">
+                    <h3>Contact Information</h3>
+                    <div class="contact-method">
+                        <h4>Professional Profile</h4>
+                        <a
+                            href="https://www.linkedin.com/in/zane-pearton?utm_source=share&utm_campaign=share_via&utm_content=profile&utm_medium=ios_app">LinkedIn:
+                            ZanePearton</a>
+                    </div>
+                    <div class="contact-method">
+                        <h4>Based In</h4>
+                        <p>Australia (with EU citizenship)</p>
+                    </div>
+                    <div class="socials">
+                        <a href="https://github.com/ZanePearton" class="social-link"><i class="fab fa-github"></i></a>
+                        <a href="https://www.linkedin.com/in/zane-pearton?utm_source=share&utm_campaign=share_via&utm_content=profile&utm_medium=ios_app"
+                            class="social-link"><i class="fab fa-linkedin-in"></i></a>
+                        <a href="https://dev.to/zanepearton" class="social-link"><i class="fab fa-dev"></i></a>
+                        <a href="https://linktr.ee/zanepearton" class="social-link"><i class="fas fa-link"></i></a>
+                    </div>
+                </div>
+                <div class="contact-form">
+                    <form id="contactForm" action="https://formspree.io/f/zanefrederickandreas@gmail.com" method="POST">
+                        <div class="form-group">
+                            <label for="name" class="form-label">Name</label>
+                            <input type="text" id="name" name="name" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="email" class="form-label">Email</label>
+                            <input type="email" id="email" name="email" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="subject" class="form-label">Subject</label>
+                            <input type="text" id="subject" name="subject" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="message" class="form-label">Message</label>
+                            <textarea id="message" name="message" class="form-control" required></textarea>
+                        </div>
+                        <button type="submit" class="form-submit">Send Message</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <div class="footer-links">
+                <a href="../index.html#hero" class="footer-link">Home</a>
+                <a href="../index.html#about" class="footer-link">About</a>
+                <a href="../index.html#projects" class="footer-link">Projects</a>
+                <a href="../index.html#certifications" class="footer-link">Certifications</a>
+                <a href="../index.html#contact" class="footer-link">Contact</a>
+            </div>
+            <p class="copyright">© 2025 Zane Pearton. All rights reserved.</p>
+        </div>
+    </footer>
+</body>
+
+</html>
